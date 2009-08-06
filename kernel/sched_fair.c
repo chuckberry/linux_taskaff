@@ -472,7 +472,8 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 {
 	unsigned long delta_exec_weighted;
 
-	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
+	schedstat_set(curr->statistics.exec_max, max((u64)delta_exec,
+				curr->statistics.exec_max));
 
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq, exec_clock, delta_exec);
@@ -513,7 +514,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	schedstat_set(se->wait_start, rq_of(cfs_rq)->clock);
+	schedstat_set(se->statistics.wait_start, rq_of(cfs_rq)->clock);
 }
 
 /*
@@ -532,12 +533,12 @@ static void update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static void
 update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	schedstat_set(se->wait_max, max(se->wait_max,
-			rq_of(cfs_rq)->clock - se->wait_start));
-	schedstat_set(se->wait_count, se->wait_count + 1);
-	schedstat_set(se->wait_sum, se->wait_sum +
-			rq_of(cfs_rq)->clock - se->wait_start);
-	schedstat_set(se->wait_start, 0);
+	schedstat_set(se->statistics.wait_max, max(se->statistics.wait_max,
+			rq_of(cfs_rq)->clock - se->statistics.wait_start));
+	schedstat_set(se->statistics.wait_count, se->statistics.wait_count + 1);
+	schedstat_set(se->statistics.wait_sum, se->statistics.wait_sum +
+			rq_of(cfs_rq)->clock - se->statistics.wait_start);
+	schedstat_set(se->statistics.wait_start, 0);
 }
 
 static inline void
@@ -616,32 +617,32 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	if (entity_is_task(se))
 		tsk = task_of(se);
 
-	if (se->sleep_start) {
-		u64 delta = rq_of(cfs_rq)->clock - se->sleep_start;
+	if (se->statistics.sleep_start) {
+		u64 delta = rq_of(cfs_rq)->clock - se->statistics.sleep_start;
 
 		if ((s64)delta < 0)
 			delta = 0;
 
-		if (unlikely(delta > se->sleep_max))
-			se->sleep_max = delta;
+		if (unlikely(delta > se->statistics.sleep_max))
+			se->statistics.sleep_max = delta;
 
-		se->sleep_start = 0;
-		se->sum_sleep_runtime += delta;
+		se->statistics.sleep_start = 0;
+		se->statistics.sum_sleep_runtime += delta;
 
 		if (tsk)
 			account_scheduler_latency(tsk, delta >> 10, 1);
 	}
-	if (se->block_start) {
-		u64 delta = rq_of(cfs_rq)->clock - se->block_start;
+	if (se->statistics.block_start) {
+		u64 delta = rq_of(cfs_rq)->clock - se->statistics.block_start;
 
 		if ((s64)delta < 0)
 			delta = 0;
 
-		if (unlikely(delta > se->block_max))
-			se->block_max = delta;
+		if (unlikely(delta > se->statistics.block_max))
+			se->statistics.block_max = delta;
 
-		se->block_start = 0;
-		se->sum_sleep_runtime += delta;
+		se->statistics.block_start = 0;
+		se->statistics.sum_sleep_runtime += delta;
 
 		if (tsk) {
 			/*
@@ -763,9 +764,11 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 			struct task_struct *tsk = task_of(se);
 
 			if (tsk->state & TASK_INTERRUPTIBLE)
-				se->sleep_start = rq_of(cfs_rq)->clock;
+				se->statistics.sleep_start =
+					rq_of(cfs_rq)->clock;
 			if (tsk->state & TASK_UNINTERRUPTIBLE)
-				se->block_start = rq_of(cfs_rq)->clock;
+				se->statistics.block_start =
+					rq_of(cfs_rq)->clock;
 		}
 #endif
 	}
@@ -821,7 +824,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * when there are only lesser-weight tasks around):
 	 */
 	if (rq_of(cfs_rq)->load.weight >= 2*se->load.weight) {
-		se->slice_max = max(se->slice_max,
+		se->statistics.slice_max = max(se->statistics.slice_max,
 			se->sum_exec_runtime - se->prev_sum_exec_runtime);
 	}
 #endif
@@ -1095,7 +1098,7 @@ static int wake_idle(int cpu, struct task_struct *p)
 				if (cpu_active(i) && idle_cpu(i)) {
 					if (i != task_cpu(p)) {
 						schedstat_inc(p,
-						       se.nr_wakeups_idle);
+						       se.statistics.nr_wakeups_idle);
 					}
 					return i;
 				}
@@ -1246,7 +1249,7 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	if (sync && balanced)
 		return 1;
 
-	schedstat_inc(p, se.nr_wakeups_affine_attempts);
+	schedstat_inc(p, se.statistics.nr_wakeups_affine_attempts);
 	tl_per_task = cpu_avg_load_per_task(this_cpu);
 
 	if (balanced || (tl <= load && tl + target_load(prev_cpu, idx) <=
@@ -1257,7 +1260,7 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 		 * there is no bad imbalance.
 		 */
 		schedstat_inc(this_sd, ttwu_move_affine);
-		schedstat_inc(p, se.nr_wakeups_affine);
+		schedstat_inc(p, se.statistics.nr_wakeups_affine);
 
 		return 1;
 	}
@@ -1318,7 +1321,7 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	if (this_sd->flags & SD_WAKE_BALANCE) {
 		if (imbalance*this_load <= 100*load) {
 			schedstat_inc(this_sd, ttwu_move_balance);
-			schedstat_inc(p, se.nr_wakeups_passive);
+			schedstat_inc(p, se.statistics.nr_wakeups_passive);
 			return this_cpu;
 		}
 	}

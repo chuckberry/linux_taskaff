@@ -1076,16 +1076,41 @@ struct load_weight {
 	unsigned long weight, inv_weight;
 };
 
-/*
- * CFS stats for a schedulable entity (task, task-group etc)
- *
- * Current field usage histogram:
- *
- *     4 se->block_start
- *     4 se->run_node
- *     4 se->sleep_start
- *     6 se->load.weight
- */
+#ifdef CONFIG_SCHEDSTATS
+struct sched_statistics {
+	u64 wait_start;
+	u64 wait_max;
+	u64 wait_count;
+	u64 wait_sum;
+
+	u64 sleep_start;
+	u64 sleep_max;
+	s64 sum_sleep_runtime;
+
+	u64 block_start;
+	u64 block_max;
+	u64 exec_max;
+	u64 slice_max;
+
+	u64 nr_migrations_cold;
+	u64 nr_failed_migrations_affine;
+	u64 nr_failed_migrations_running;
+	u64 nr_failed_migrations_hot;
+	u64 nr_forced_migrations;
+	u64 nr_forced2_migrations;
+
+	u64 nr_wakeups;
+	u64 nr_wakeups_sync;
+	u64 nr_wakeups_migrate;
+	u64 nr_wakeups_local;
+	u64 nr_wakeups_remote;
+	u64 nr_wakeups_affine;
+	u64 nr_wakeups_affine_attempts;
+	u64 nr_wakeups_passive;
+	u64 nr_wakeups_idle;
+};
+#endif
+
 struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
@@ -1106,36 +1131,7 @@ struct sched_entity {
 	u64			avg_wakeup;
 
 #ifdef CONFIG_SCHEDSTATS
-	u64			wait_start;
-	u64			wait_max;
-	u64			wait_count;
-	u64			wait_sum;
-
-	u64			sleep_start;
-	u64			sleep_max;
-	s64			sum_sleep_runtime;
-
-	u64			block_start;
-	u64			block_max;
-	u64			exec_max;
-	u64			slice_max;
-
-	u64			nr_migrations_cold;
-	u64			nr_failed_migrations_affine;
-	u64			nr_failed_migrations_running;
-	u64			nr_failed_migrations_hot;
-	u64			nr_forced_migrations;
-	u64			nr_forced2_migrations;
-
-	u64			nr_wakeups;
-	u64			nr_wakeups_sync;
-	u64			nr_wakeups_migrate;
-	u64			nr_wakeups_local;
-	u64			nr_wakeups_remote;
-	u64			nr_wakeups_affine;
-	u64			nr_wakeups_affine_attempts;
-	u64			nr_wakeups_passive;
-	u64			nr_wakeups_idle;
+	struct sched_statistics statistics;
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
