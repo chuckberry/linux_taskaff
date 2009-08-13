@@ -1113,6 +1113,7 @@ struct sched_statistics {
 
 struct sched_fair_entity {
 
+	u64			vruntime;
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct sched_entity	*parent;
 #endif
@@ -1148,7 +1149,6 @@ struct sched_entity {
 
 	u64			exec_start;
 	u64			sum_exec_runtime;
-	u64			vruntime;
 	u64			prev_sum_exec_runtime;
 
 	u64			last_wakeup;

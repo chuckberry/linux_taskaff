@@ -252,6 +252,14 @@ static inline u64 max_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
+static inline u64 task_vruntime(struct task_struct *p)
+{
+	if (p->sched_class == &fair_sched_class)
+		return p->se.fair.vruntime;
+
+	return 0;
+}
+
 static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - min_vruntime);
@@ -264,12 +272,12 @@ static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 static inline int entity_before(struct sched_entity *a,
 				struct sched_entity *b)
 {
-	return (s64)(a->vruntime - b->vruntime) < 0;
+	return (s64)(a->fair.vruntime - b->fair.vruntime) < 0;
 }
 
 static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	return se->vruntime - cfs_rq->min_vruntime;
+	return se->fair.vruntime - cfs_rq->min_vruntime;
 }
 
 static void update_min_vruntime(struct cfs_rq *cfs_rq)
@@ -277,7 +285,7 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 	u64 vruntime = cfs_rq->min_vruntime;
 
 	if (cfs_rq->curr)
-		vruntime = cfs_rq->curr->vruntime;
+		vruntime = cfs_rq->curr->fair.vruntime;
 
 	if (cfs_rq->rb_leftmost) {
 		struct sched_entity *se = rb_entry(cfs_rq->rb_leftmost,
@@ -285,9 +293,9 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 						   run_node);
 
 		if (!cfs_rq->curr)
-			vruntime = se->vruntime;
+			vruntime = se->fair.vruntime;
 		else
-			vruntime = min_vruntime(vruntime, se->vruntime);
+			vruntime = min_vruntime(vruntime, se->fair.vruntime);
 	}
 
 	cfs_rq->min_vruntime = max_vruntime(cfs_rq->min_vruntime, vruntime);
@@ -473,7 +481,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq, exec_clock, delta_exec);
 	delta_exec_weighted = calc_delta_fair(delta_exec, curr);
-	curr->vruntime += delta_exec_weighted;
+	curr->fair.vruntime += delta_exec_weighted;
 	update_min_vruntime(cfs_rq);
 }
 
@@ -659,7 +667,7 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 #ifdef CONFIG_SCHED_DEBUG
-	s64 d = se->vruntime - cfs_rq->min_vruntime;
+	s64 d = se->fair.vruntime - cfs_rq->min_vruntime;
 
 	if (d < 0)
 		d = -d;
@@ -703,10 +711,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		}
 
 		/* ensure we never gain time by being placed backwards. */
-		vruntime = max_vruntime(se->vruntime, vruntime);
+		vruntime = max_vruntime(se->fair.vruntime, vruntime);
 	}
 
-	se->vruntime = vruntime;
+	se->fair.vruntime = vruntime;
 }
 
 static void
@@ -1035,7 +1043,7 @@ static void yield_task_fair(struct rq *rq)
 	 * Upon rescheduling, sched_class::put_prev_task() will place
 	 * 'current' within the tree based on its new key value.
 	 */
-	se->vruntime = rightmost->vruntime + 1;
+	se->fair.vruntime = rightmost->fair.vruntime + 1;
 }
 
 /*
@@ -1404,7 +1412,7 @@ wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
 static int
 wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 {
-	s64 gran, vdiff = curr->vruntime - se->vruntime;
+	s64 gran, vdiff = curr->fair.vruntime - se->fair.vruntime;
 
 	if (vdiff <= 0)
 		return -1;
@@ -1728,7 +1736,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		 * Upon rescheduling, sched_class::put_prev_task() will place
 		 * 'current' within the tree based on its new key value.
 		 */
-		swap(curr->vruntime, se->vruntime);
+		swap(curr->fair.vruntime, se->fair.vruntime);
 		resched_task(rq->curr);
 	}
 

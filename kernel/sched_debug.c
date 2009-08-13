@@ -67,7 +67,7 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu,
 	SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)F))
 
 	PN(se->exec_start);
-	PN(se->vruntime);
+	PN(se->fair.vruntime);
 	PN(se->sum_exec_runtime);
 #ifdef CONFIG_SCHEDSTATS
 	PN(se->statistics.wait_start);
@@ -97,12 +97,12 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 
 	SEQ_printf(m, "%15s %5d %9Ld.%06ld %9Ld %5d ",
 		p->comm, p->pid,
-		SPLIT_NS(p->se.vruntime),
+		SPLIT_NS(task_vruntime(p)),
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
 	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-		SPLIT_NS(p->se.vruntime),
+		SPLIT_NS(task_vruntime(p)),
 		SPLIT_NS(p->se.sum_exec_runtime),
 		SPLIT_NS(p->se.statistics.sum_sleep_runtime));
 #else
@@ -186,10 +186,10 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 	spin_lock_irqsave(&rq->lock, flags);
 	if (cfs_rq->rb_leftmost)
-		MIN_vruntime = (__pick_next_entity(cfs_rq))->vruntime;
+		MIN_vruntime = (__pick_next_entity(cfs_rq))->fair.vruntime;
 	last = __pick_last_entity(cfs_rq);
 	if (last)
-		max_vruntime = last->vruntime;
+		max_vruntime = last->fair.vruntime;
 	min_vruntime = cfs_rq->min_vruntime;
 	rq0_min_vruntime = cpu_rq(0)->cfs.min_vruntime;
 	spin_unlock_irqrestore(&rq->lock, flags);
@@ -391,7 +391,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	SEQ_printf(m, "%-35s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
 
 	PN(se.exec_start);
-	PN(se.vruntime);
+	__PN(task_vruntime(p));
 	PN(se.sum_exec_runtime);
 	PN(se.avg_overlap);
 	PN(se.avg_wakeup);
