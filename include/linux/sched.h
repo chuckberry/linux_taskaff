@@ -1113,6 +1113,8 @@ struct sched_statistics {
 
 struct sched_fair_entity {
 	struct rb_node		run_node;
+	/* TODO: move to CONFIG_FAIR_GROUP_SCHED && CONFIG_SMP */
+	struct list_head        group_node;
 
 	u64			vruntime;
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -1144,7 +1146,6 @@ struct sched_entity {
 	};
 
 	struct load_weight	load;		/* for load-balancing */
-	struct list_head	group_node;
 	unsigned int		on_rq;
 
 	u64			exec_start;

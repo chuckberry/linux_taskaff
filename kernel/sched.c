@@ -2584,7 +2584,7 @@ static void __sched_fork(struct task_struct *p)
 
 	INIT_LIST_HEAD(&p->rt.run_list);
 	p->se.on_rq = 0;
-	INIT_LIST_HEAD(&p->se.group_node);
+	INIT_LIST_HEAD(&p->se.fair.group_node);
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);

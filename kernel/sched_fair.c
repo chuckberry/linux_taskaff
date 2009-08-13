@@ -602,7 +602,7 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		inc_cpu_load(rq_of(cfs_rq), se->load.weight);
 	if (entity_is_task(se)) {
 		add_cfs_task_weight(cfs_rq, se->load.weight);
-		list_add(&se->group_node, &cfs_rq->tasks);
+		list_add(&se->fair.group_node, &cfs_rq->tasks);
 	}
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
@@ -616,7 +616,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		dec_cpu_load(rq_of(cfs_rq), se->load.weight);
 	if (entity_is_task(se)) {
 		add_cfs_task_weight(cfs_rq, -se->load.weight);
-		list_del_init(&se->group_node);
+		list_del_init(&se->fair.group_node);
 	}
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
@@ -1579,13 +1579,13 @@ static struct task_struct *
 __load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 {
 	struct task_struct *p = NULL;
-	struct sched_entity *se;
+	struct sched_fair_entity *fair_se;
 
 	if (next == &cfs_rq->tasks)
 		return NULL;
 
-	se = list_entry(next, struct sched_entity, group_node);
-	p = task_of(se);
+	fair_se = list_entry(next, struct sched_fair_entity, group_node);
+	p = task_of(se_of_fair_se(fair_se));
 	cfs_rq->balance_iterator = next->next;
 
 	return p;

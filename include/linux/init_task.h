@@ -124,7 +124,9 @@ extern struct cred init_cred;
 	.mm		= NULL,						\
 	.active_mm	= &init_mm,					\
 	.se		= {						\
-		.group_node 	= LIST_HEAD_INIT(tsk.se.group_node),	\
+		{ .fair	= {						\
+			.group_node = LIST_HEAD_INIT(tsk.se.fair.group_node) \
+		} } 							\
 	},								\
 	.rt		= {						\
 		.run_list	= LIST_HEAD_INIT(tsk.rt.run_list),	\
