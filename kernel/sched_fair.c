@@ -79,11 +79,6 @@ static const struct sched_class fair_sched_class;
  * CFS operations on generic schedulable entities:
  */
 
-static inline struct task_struct *task_of(struct sched_entity *se)
-{
-	return container_of(se, struct task_struct, se);
-}
-
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
 /* cpu runqueue to which this cfs_rq is attached */

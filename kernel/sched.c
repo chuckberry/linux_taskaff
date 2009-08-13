@@ -144,6 +144,11 @@ static inline void sg_inc_cpu_power(struct sched_group *sg, u32 val)
 }
 #endif
 
+static inline struct task_struct *task_of(struct sched_entity *se)
+{
+	return container_of(se, struct task_struct, se);
+}
+
 static inline int rt_policy(int policy)
 {
 	if (unlikely(policy == SCHED_FIFO || policy == SCHED_RR))
