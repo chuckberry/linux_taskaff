@@ -1342,6 +1342,14 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 out:
 	return wake_idle(new_cpu, p);
 }
+
+static void set_task_cpu_fair(struct task_struct *p, unsigned int new_cpu)
+{
+	struct cfs_rq *old_cfsrq = task_cfs_rq(p),
+		      *new_cfsrq = cpu_cfs_rq(old_cfsrq, new_cpu);
+	p->se.fair.vruntime -= old_cfsrq->min_vruntime -
+				 new_cfsrq->min_vruntime;
+}
 #endif /* CONFIG_SMP */
 
 /*
@@ -1828,6 +1836,7 @@ static const struct sched_class fair_sched_class = {
 
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_fair,
+	.set_task_cpu		= set_task_cpu_fair,
 
 	.load_balance		= load_balance_fair,
 	.move_one_task		= move_one_task_fair,

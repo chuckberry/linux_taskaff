@@ -1986,13 +1986,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 		perf_swcounter_event(PERF_COUNT_SW_CPU_MIGRATIONS,
 				     1, 1, NULL, 0);
 	}
-	/*TODO: create a set_task_cpu for each class*/
-	if (p->sched_class == &fair_sched_class) {
-		struct cfs_rq *old_cfsrq = task_cfs_rq(p),
-		      *new_cfsrq = cpu_cfs_rq(old_cfsrq, new_cpu);
-		p->se.fair.vruntime -= old_cfsrq->min_vruntime -
-					 new_cfsrq->min_vruntime;
-	}
+	if (p->sched_class->set_task_cpu)
+		p->sched_class->set_task_cpu(p, new_cpu);
 
 	__set_task_cpu(p, new_cpu);
 }
