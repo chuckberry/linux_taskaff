@@ -1111,7 +1111,32 @@ struct sched_statistics {
 };
 #endif
 
+struct sched_fair_entity {
+};
+
+struct sched_rt_entity {
+	struct list_head run_list;
+	unsigned long timeout;
+	unsigned int time_slice;
+	int nr_cpus_allowed;
+
+	struct sched_rt_entity *back;
+#ifdef CONFIG_RT_GROUP_SCHED
+	struct sched_rt_entity	*parent;
+	/* rq on which this entity is (to be) queued: */
+	struct rt_rq		*rt_rq;
+	/* rq "owned" by this entity/group: */
+	struct rt_rq		*my_q;
+#endif
+};
+
+
 struct sched_entity {
+	union {
+		struct sched_fair_entity fair;
+		struct sched_rt_entity rt;
+	};
+
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
 	struct list_head	group_node;
@@ -1130,6 +1155,7 @@ struct sched_entity {
 	u64			start_runtime;
 	u64			avg_wakeup;
 
+
 #ifdef CONFIG_SCHEDSTATS
 	struct sched_statistics statistics;
 #endif
@@ -1140,22 +1166,6 @@ struct sched_entity {
 	struct cfs_rq		*cfs_rq;
 	/* rq "owned" by this entity/group: */
 	struct cfs_rq		*my_q;
-#endif
-};
-
-struct sched_rt_entity {
-	struct list_head run_list;
-	unsigned long timeout;
-	unsigned int time_slice;
-	int nr_cpus_allowed;
-
-	struct sched_rt_entity *back;
-#ifdef CONFIG_RT_GROUP_SCHED
-	struct sched_rt_entity	*parent;
-	/* rq on which this entity is (to be) queued: */
-	struct rt_rq		*rt_rq;
-	/* rq "owned" by this entity/group: */
-	struct rt_rq		*my_q;
 #endif
 };
 
