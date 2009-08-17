@@ -9108,9 +9108,9 @@ static void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 	if (!parent)
 		se->cfs_rq = &rq->cfs;
 	else
-		se->cfs_rq = parent->my_q;
+		se->cfs_rq = parent->fair.my_q;
 
-	se->my_q = cfs_rq;
+	se->fair.my_q = cfs_rq;
 	se->load.weight = tg->shares;
 	se->load.inv_weight = 0;
 	se->fair.parent = parent;

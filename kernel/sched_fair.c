@@ -94,7 +94,7 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 }
 
 /* An entity is a task if it doesn't "own" a runqueue */
-#define entity_is_task(se)	(!se->my_q)
+#define entity_is_task(se)	(!se->fair.my_q)
 
 /* Walk up scheduling entities hierarchy */
 #define for_each_sched_fair_entity(se) \
@@ -114,7 +114,7 @@ static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
 /* runqueue "owned" by this group */
 static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
 {
-	return grp->my_q;
+	return grp->fair.my_q;
 }
 
 /* Given a group's cfs_rq on one cpu, return its corresponding cfs_rq on
@@ -1176,13 +1176,13 @@ static long effective_load(struct task_group *tg, int cpu,
 		 * Instead of using this increment, also add the difference
 		 * between when the shares were last updated and now.
 		 */
-		more_w = se->my_q->load.weight - se->my_q->rq_weight;
+		more_w = se->fair.my_q->load.weight - se->fair.my_q->rq_weight;
 		wl += more_w;
 		wg += more_w;
 
-		S = se->my_q->tg->shares;
-		s = se->my_q->shares;
-		rw = se->my_q->rq_weight;
+		S = se->fair.my_q->tg->shares;
+		s = se->fair.my_q->shares;
+		rw = se->fair.my_q->rq_weight;
 
 		a = S*(rw + wl);
 		b = S*rw + s*wg;
