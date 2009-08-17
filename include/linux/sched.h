@@ -1119,6 +1119,8 @@ struct sched_fair_entity {
 	u64			vruntime;
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct sched_entity	*parent;
+	/* rq on which this entity is (to be) queued: */
+	struct cfs_rq		*cfs_rq;
 	/* rq "owned" by this entity/group: */
 	struct cfs_rq		*my_q;
 #endif
@@ -1165,11 +1167,6 @@ struct sched_entity {
 
 #ifdef CONFIG_SCHEDSTATS
 	struct sched_statistics statistics;
-#endif
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	/* rq on which this entity is (to be) queued: */
-	struct cfs_rq		*cfs_rq;
 #endif
 };
 

@@ -102,13 +102,13 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 
 static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
 {
-	return p->se.cfs_rq;
+	return p->se.fair.cfs_rq;
 }
 
 /* runqueue on which this entity is (to be) queued */
 static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
 {
-	return se->cfs_rq;
+	return se->fair.cfs_rq;
 }
 
 /* runqueue "owned" by this group */
@@ -133,7 +133,7 @@ static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 static inline int
 is_same_group(struct sched_entity *se, struct sched_entity *pse)
 {
-	if (se->cfs_rq == pse->cfs_rq)
+	if (se->fair.cfs_rq == pse->fair.cfs_rq)
 		return 1;
 
 	return 0;

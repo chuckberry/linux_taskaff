@@ -394,7 +394,7 @@ static inline struct task_group *task_group(struct task_struct *p)
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	p->se.cfs_rq = task_group(p)->cfs_rq[cpu];
+	p->se.fair.cfs_rq = task_group(p)->cfs_rq[cpu];
 	p->se.fair.parent = task_group(p)->se[cpu];
 #endif
 
@@ -1961,8 +1961,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
 	int old_cpu = task_cpu(p);
 	struct rq *old_rq = cpu_rq(old_cpu), *new_rq = cpu_rq(new_cpu);
-	struct cfs_rq *old_cfsrq = task_cfs_rq(p),
-		      *new_cfsrq = cpu_cfs_rq(old_cfsrq, new_cpu);
+
 	u64 clock_offset;
 
 	clock_offset = old_rq->clock - new_rq->clock;
@@ -1987,8 +1986,13 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 		perf_swcounter_event(PERF_COUNT_SW_CPU_MIGRATIONS,
 				     1, 1, NULL, 0);
 	}
-	p->se.fair.vruntime -= old_cfsrq->min_vruntime -
+	/*TODO: create a set_task_cpu for each class*/
+	if (p->sched_class == &fair_sched_class) {
+		struct cfs_rq *old_cfsrq = task_cfs_rq(p),
+		      *new_cfsrq = cpu_cfs_rq(old_cfsrq, new_cpu);
+		p->se.fair.vruntime -= old_cfsrq->min_vruntime -
 					 new_cfsrq->min_vruntime;
+	}
 
 	__set_task_cpu(p, new_cpu);
 }
@@ -9106,9 +9110,9 @@ static void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 		return;
 
 	if (!parent)
-		se->cfs_rq = &rq->cfs;
+		se->fair.cfs_rq = &rq->cfs;
 	else
-		se->cfs_rq = parent->fair.my_q;
+		se->fair.cfs_rq = parent->fair.my_q;
 
 	se->fair.my_q = cfs_rq;
 	se->load.weight = tg->shares;
@@ -9796,7 +9800,7 @@ void sched_move_task(struct task_struct *tsk)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static void __set_se_shares(struct sched_entity *se, unsigned long shares)
 {
-	struct cfs_rq *cfs_rq = se->cfs_rq;
+	struct cfs_rq *cfs_rq = se->fair.cfs_rq;
 	int on_rq;
 
 	on_rq = se->on_rq;
@@ -9812,7 +9816,7 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares)
 
 static void set_se_shares(struct sched_entity *se, unsigned long shares)
 {
-	struct cfs_rq *cfs_rq = se->cfs_rq;
+	struct cfs_rq *cfs_rq = se->fair.cfs_rq;
 	struct rq *rq = cfs_rq->rq;
 	unsigned long flags;
 
