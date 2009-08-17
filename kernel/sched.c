@@ -393,15 +393,7 @@ static inline struct task_group *task_group(struct task_struct *p)
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	p->se.fair.cfs_rq = task_group(p)->cfs_rq[cpu];
-	p->se.fair.parent = task_group(p)->se[cpu];
-#endif
-
-#ifdef CONFIG_RT_GROUP_SCHED
-	p->rt.rt_rq  = task_group(p)->rt_rq[cpu];
-	p->rt.parent = task_group(p)->rt_se[cpu];
-#endif
+	p->sched_class->set_task_rq(p, cpu);
 }
 
 #else
@@ -6845,6 +6837,11 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long flags;
+
+	/* Pretend to be a fair task to initialize the right fields
+	 * in __set_task_cpu
+	 */
+	idle->sched_class = &fair_sched_class;
 
 	spin_lock_irqsave(&rq->lock, flags);
 

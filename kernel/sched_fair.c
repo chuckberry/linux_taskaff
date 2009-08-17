@@ -1571,6 +1571,14 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 	}
 }
 
+static void set_task_rq_fair(struct task_struct *p, unsigned int cpu)
+{
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	p->se.fair.cfs_rq = task_group(p)->cfs_rq[cpu];
+	p->se.fair.parent = task_group(p)->se[cpu];
+#endif
+}
+
 #ifdef CONFIG_SMP
 /**************************************************
  * Fair scheduling class load-balancing methods:
@@ -1834,6 +1842,7 @@ static const struct sched_class fair_sched_class = {
 	.pick_next_task		= pick_next_task_fair,
 	.put_prev_task		= put_prev_task_fair,
 
+	.set_task_rq		= set_task_rq_fair,
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_fair,
 	.set_task_cpu		= set_task_cpu_fair,

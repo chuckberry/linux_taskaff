@@ -1033,6 +1033,7 @@ struct sched_class {
 	struct task_struct * (*pick_next_task) (struct rq *rq);
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
 
+	void (*set_task_rq)(struct task_struct *p, unsigned int cpu);
 #ifdef CONFIG_SMP
 	int  (*select_task_rq)(struct task_struct *p, int sync);
 	void (*set_task_cpu)(struct task_struct *p, unsigned int new_cpu);

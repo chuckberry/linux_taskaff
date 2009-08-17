@@ -1081,6 +1081,14 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 		enqueue_pushable_task(rq, p);
 }
 
+static void set_task_rq_rt(struct task_struct *p, unsigned int cpu)
+{
+#ifdef CONFIG_RT_GROUP_SCHED
+	p->rt.rt_rq  = task_group(p)->rt_rq[cpu];
+	p->rt.parent = task_group(p)->rt_se[cpu];
+#endif
+}
+
 #ifdef CONFIG_SMP
 
 /* Only try algorithms three times */
@@ -1750,6 +1758,7 @@ static const struct sched_class rt_sched_class = {
 	.pick_next_task		= pick_next_task_rt,
 	.put_prev_task		= put_prev_task_rt,
 
+	.set_task_rq		= set_task_rq_rt,
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_rt,
 

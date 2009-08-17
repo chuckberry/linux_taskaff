@@ -44,6 +44,11 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
 }
 
+static void set_task_rq_idle(struct task_struct *p, unsigned int cpu)
+{
+	BUG();
+}
+
 #ifdef CONFIG_SMP
 static unsigned long
 load_balance_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
@@ -112,6 +117,7 @@ static const struct sched_class idle_sched_class = {
 	.pick_next_task		= pick_next_task_idle,
 	.put_prev_task		= put_prev_task_idle,
 
+	.set_task_rq		= set_task_rq_idle,
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_idle,
 
