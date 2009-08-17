@@ -1112,6 +1112,10 @@ struct sched_statistics {
 #endif
 
 struct sched_fair_entity {
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct sched_entity	*parent;
+#endif
 };
 
 struct sched_rt_entity {
@@ -1161,7 +1165,6 @@ struct sched_entity {
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	struct sched_entity	*parent;
 	/* rq on which this entity is (to be) queued: */
 	struct cfs_rq		*cfs_rq;
 	/* rq "owned" by this entity/group: */

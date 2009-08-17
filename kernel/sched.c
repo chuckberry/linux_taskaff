@@ -395,7 +395,7 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	p->se.cfs_rq = task_group(p)->cfs_rq[cpu];
-	p->se.parent = task_group(p)->se[cpu];
+	p->se.fair.parent = task_group(p)->se[cpu];
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -9113,7 +9113,7 @@ static void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 	se->my_q = cfs_rq;
 	se->load.weight = tg->shares;
 	se->load.inv_weight = 0;
-	se->parent = parent;
+	se->fair.parent = parent;
 }
 #endif
 

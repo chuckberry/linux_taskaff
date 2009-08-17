@@ -91,8 +91,8 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 #define entity_is_task(se)	(!se->my_q)
 
 /* Walk up scheduling entities hierarchy */
-#define for_each_sched_entity(se) \
-		for (; se; se = se->parent)
+#define for_each_sched_fair_entity(se) \
+		for (; se; se = se->fair.parent)
 
 static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
 {
@@ -135,7 +135,7 @@ is_same_group(struct sched_entity *se, struct sched_entity *pse)
 
 static inline struct sched_entity *parent_entity(struct sched_entity *se)
 {
-	return se->parent;
+	return se->fair.parent;
 }
 
 /* return depth at which a sched entity is present in the hierarchy */
@@ -143,7 +143,7 @@ static inline int depth_se(struct sched_entity *se)
 {
 	int depth = 0;
 
-	for_each_sched_entity(se)
+	for_each_sched_fair_entity(se)
 		depth++;
 
 	return depth;
@@ -190,7 +190,7 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 
 #define entity_is_task(se)	1
 
-#define for_each_sched_entity(se) \
+#define for_each_sched_fair_entity(se) \
 		for (; se; se = NULL)
 
 static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
@@ -429,7 +429,7 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
 
-	for_each_sched_entity(se) {
+	for_each_sched_fair_entity(se) {
 		struct load_weight *load;
 		struct load_weight lw;
 
@@ -740,7 +740,7 @@ static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	for_each_sched_entity(se)
+	for_each_sched_fair_entity(se)
 		__clear_buddies(cfs_rq_of(se), se);
 }
 
@@ -959,7 +959,7 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 
-	for_each_sched_entity(se) {
+	for_each_sched_fair_entity(se) {
 		if (se->on_rq)
 			break;
 		cfs_rq = cfs_rq_of(se);
@@ -980,7 +980,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 
-	for_each_sched_entity(se) {
+	for_each_sched_fair_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 		dequeue_entity(cfs_rq, se, sleep);
 		/* Don't dequeue parent if it has other entities besides us */
@@ -1150,7 +1150,7 @@ static long effective_load(struct task_group *tg, int cpu,
 	if (!wl && sched_feat(ASYM_EFF_LOAD))
 		return wl;
 
-	for_each_sched_entity(se) {
+	for_each_sched_fair_entity(se) {
 		long S, rw, s, a, b;
 		long more_w;
 
@@ -1419,7 +1419,7 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 static void set_last_buddy(struct sched_entity *se)
 {
 	if (likely(task_of(se)->policy != SCHED_IDLE)) {
-		for_each_sched_entity(se)
+		for_each_sched_fair_entity(se)
 			cfs_rq_of(se)->last = se;
 	}
 }
@@ -1427,7 +1427,7 @@ static void set_last_buddy(struct sched_entity *se)
 static void set_next_buddy(struct sched_entity *se)
 {
 	if (likely(task_of(se)->policy != SCHED_IDLE)) {
-		for_each_sched_entity(se)
+		for_each_sched_fair_entity(se)
 			cfs_rq_of(se)->next = se;
 	}
 }
@@ -1539,7 +1539,7 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 	struct sched_entity *se = &prev->se;
 	struct cfs_rq *cfs_rq;
 
-	for_each_sched_entity(se) {
+	for_each_sched_fair_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 		put_prev_entity(cfs_rq, se);
 	}
@@ -1697,7 +1697,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &curr->se;
 
-	for_each_sched_entity(se) {
+	for_each_sched_fair_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 		entity_tick(cfs_rq, se, queued);
 	}
@@ -1780,7 +1780,7 @@ static void set_curr_task_fair(struct rq *rq)
 {
 	struct sched_entity *se = &rq->curr->se;
 
-	for_each_sched_entity(se)
+	for_each_sched_fair_entity(se)
 		set_next_entity(cfs_rq_of(se), se);
 }
 
