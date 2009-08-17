@@ -79,6 +79,12 @@ static const struct sched_class fair_sched_class;
  * CFS operations on generic schedulable entities:
  */
 
+static inline struct sched_entity *
+se_of_fair_se(struct sched_fair_entity *fair_se)
+{
+	return container_of(fair_se, struct sched_entity, fair);
+}
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
 /* cpu runqueue to which this cfs_rq is attached */
@@ -288,14 +294,14 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 		vruntime = cfs_rq->curr->fair.vruntime;
 
 	if (cfs_rq->rb_leftmost) {
-		struct sched_entity *se = rb_entry(cfs_rq->rb_leftmost,
-						   struct sched_entity,
-						   run_node);
+		struct sched_fair_entity *fair_se =
+			rb_entry(cfs_rq->rb_leftmost, struct sched_fair_entity,
+			run_node);
 
 		if (!cfs_rq->curr)
-			vruntime = se->fair.vruntime;
+			vruntime = fair_se->vruntime;
 		else
-			vruntime = min_vruntime(vruntime, se->fair.vruntime);
+			vruntime = min_vruntime(vruntime, fair_se->vruntime);
 	}
 
 	cfs_rq->min_vruntime = max_vruntime(cfs_rq->min_vruntime, vruntime);
@@ -308,7 +314,6 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
 	struct rb_node *parent = NULL;
-	struct sched_entity *entry;
 	s64 key = entity_key(cfs_rq, se);
 	int leftmost = 1;
 
@@ -316,13 +321,14 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Find the right place in the rbtree:
 	 */
 	while (*link) {
+		struct sched_fair_entity *entry;
 		parent = *link;
-		entry = rb_entry(parent, struct sched_entity, run_node);
+		entry = rb_entry(parent, struct sched_fair_entity, run_node);
 		/*
 		 * We dont care about collisions. Nodes with
 		 * the same key stay together.
 		 */
-		if (key < entity_key(cfs_rq, entry)) {
+		if (key < entity_key(cfs_rq, se_of_fair_se(entry))) {
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
@@ -335,42 +341,46 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * used):
 	 */
 	if (leftmost)
-		cfs_rq->rb_leftmost = &se->run_node;
+		cfs_rq->rb_leftmost = &se->fair.run_node;
 
-	rb_link_node(&se->run_node, parent, link);
-	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
+	rb_link_node(&se->fair.run_node, parent, link);
+	rb_insert_color(&se->fair.run_node, &cfs_rq->tasks_timeline);
 }
 
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (cfs_rq->rb_leftmost == &se->run_node) {
+	if (cfs_rq->rb_leftmost == &se->fair.run_node) {
 		struct rb_node *next_node;
 
-		next_node = rb_next(&se->run_node);
+		next_node = rb_next(&se->fair.run_node);
 		cfs_rq->rb_leftmost = next_node;
 	}
 
-	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
+	rb_erase(&se->fair.run_node, &cfs_rq->tasks_timeline);
 }
 
 static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *left = cfs_rq->rb_leftmost;
+	struct sched_fair_entity *fair_se;
 
 	if (!left)
 		return NULL;
 
-	return rb_entry(left, struct sched_entity, run_node);
+	fair_se = rb_entry(left, struct sched_fair_entity, run_node);
+	return se_of_fair_se(fair_se);
 }
 
 static struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline);
+	struct sched_fair_entity *fair_se;
 
 	if (!last)
 		return NULL;
 
-	return rb_entry(last, struct sched_entity, run_node);
+	fair_se = rb_entry(last, struct sched_fair_entity, run_node);
+	return se_of_fair_se(fair_se);
 }
 
 /**************************************************************
