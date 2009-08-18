@@ -2574,9 +2574,13 @@ static void __sched_fork(struct task_struct *p)
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
 
-	INIT_LIST_HEAD(&p->rt.run_list);
+	/*TODO: Check if we can remove this due to the introduced assign_class*/
+	if (rt_task(p))
+		INIT_LIST_HEAD(&p->rt.run_list);
+	else
+		INIT_LIST_HEAD(&p->se.fair.group_node);
 	p->se.on_rq = 0;
-	INIT_LIST_HEAD(&p->se.fair.group_node);
+
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
