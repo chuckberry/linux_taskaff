@@ -2598,19 +2598,19 @@ void sched_fork(struct task_struct *p, int clone_flags)
 {
 	int cpu = get_cpu();
 
-	__sched_fork(p);
-
-#ifdef CONFIG_SMP
-	cpu = sched_balance_self(cpu, SD_BALANCE_FORK);
-#endif
-	set_task_cpu(p, cpu);
-
 	/*
 	 * Make sure we do not leak PI boosting priority to the child:
 	 */
 	p->prio = current->normal_prio;
 	if (!rt_prio(p->prio))
 		fair_sched_class.assign_class(p);
+
+	__sched_fork(p);
+
+#ifdef CONFIG_SMP
+	cpu = sched_balance_self(cpu, SD_BALANCE_FORK);
+#endif
+	set_task_cpu(p, cpu);
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	if (likely(sched_info_on()))
