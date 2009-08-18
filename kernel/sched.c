@@ -2576,7 +2576,7 @@ static void __sched_fork(struct task_struct *p)
 
 	/*TODO: Check if we can remove this due to the introduced assign_class*/
 	if (rt_task(p))
-		INIT_LIST_HEAD(&p->rt.run_list);
+		INIT_LIST_HEAD(&p->se.rt.run_list);
 	else
 		INIT_LIST_HEAD(&p->se.fair.group_node);
 	p->se.on_rq = 0;
@@ -6074,12 +6074,12 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 
 #if defined(CONFIG_RT_GROUP_SCHED) && defined(CONFIG_FAIR_GROUP_SCHED)
 	if (rt_task(p))
-		p->rt.my_q = NULL;
+		p->se.rt.my_q = NULL;
 	else
 		p->se.fair.my_q = NULL;
 #elif defined(CONFIG_RT_GROUP_SCHED)
 	if (rt_task(p))
-		p->rt.my_q = NULL;
+		p->se.rt.my_q = NULL;
 #elif defined(CONFIG_FAIR_GROUP_SCHED)
 	if (!rt_task(p))
 		p->se.fair.my_q = NULL;
@@ -9919,7 +9919,7 @@ static inline int tg_has_rt_tasks(struct task_group *tg)
 	struct task_struct *g, *p;
 
 	do_each_thread(g, p) {
-		if (rt_task(p) && rt_rq_of_se(&p->rt)->tg == tg)
+		if (rt_task(p) && rt_rq_of_se(&p->se.rt)->tg == tg)
 			return 1;
 	} while_each_thread(g, p);
 

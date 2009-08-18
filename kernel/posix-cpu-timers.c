@@ -1033,7 +1033,7 @@ static void check_thread_timers(struct task_struct *tsk,
 		unsigned long *soft = &sig->rlim[RLIMIT_RTTIME].rlim_cur;
 
 		if (rt_task(tsk) && hard != RLIM_INFINITY &&
-		    tsk->rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
+		    tsk->se.rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
 			/*
 			 * At the hard limit, we just die.
 			 * No need to calculate anything else now.
@@ -1042,7 +1042,7 @@ static void check_thread_timers(struct task_struct *tsk,
 			return;
 		}
 		if (rt_task(tsk) &&
-		    tsk->rt.timeout > DIV_ROUND_UP(*soft, USEC_PER_SEC/HZ)) {
+		    tsk->se.rt.timeout > DIV_ROUND_UP(*soft, USEC_PER_SEC/HZ)) {
 			/*
 			 * At the soft limit, send a SIGXCPU every second.
 			 */

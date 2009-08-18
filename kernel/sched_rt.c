@@ -8,7 +8,8 @@ static const struct sched_class rt_sched_class;
 
 static inline struct task_struct *rt_task_of(struct sched_rt_entity *rt_se)
 {
-	return container_of(rt_se, struct task_struct, rt);
+	struct sched_entity *se = container_of(rt_se, struct sched_entity, rt);
+	return task_of(se);
 }
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -586,7 +587,7 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 static void update_curr_rt(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
-	struct sched_rt_entity *rt_se = &curr->rt;
+	struct sched_rt_entity *rt_se = &curr->se.rt;
 	struct rt_rq *rt_rq = rt_rq_of_se(rt_se);
 	u64 delta_exec;
 
@@ -867,9 +868,9 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
 static void assign_class_rt(struct task_struct *p)
 {
 	p->sched_class = &rt_sched_class;
-	p->rt.nr_cpus_allowed = cpumask_weight(&p->cpus_allowed);
-	INIT_LIST_HEAD(&p->rt.run_list);
-	p->rt.time_slice = HZ;
+	p->se.rt.nr_cpus_allowed = cpumask_weight(&p->cpus_allowed);
+	INIT_LIST_HEAD(&p->se.rt.run_list);
+	p->se.rt.time_slice = HZ;
 }
 
 
@@ -878,14 +879,14 @@ static void assign_class_rt(struct task_struct *p)
  */
 static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 {
-	struct sched_rt_entity *rt_se = &p->rt;
+	struct sched_rt_entity *rt_se = &p->se.rt;
 
 	if (wakeup)
 		rt_se->timeout = 0;
 
 	enqueue_rt_entity(rt_se);
 
-	if (!task_current(rq, p) && p->rt.nr_cpus_allowed > 1)
+	if (!task_current(rq, p) && p->se.rt.nr_cpus_allowed > 1)
 		enqueue_pushable_task(rq, p);
 
 	inc_cpu_load(rq, p->se.load.weight);
@@ -893,7 +894,7 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 
 static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 {
-	struct sched_rt_entity *rt_se = &p->rt;
+	struct sched_rt_entity *rt_se = &p->se.rt;
 
 	update_curr_rt(rq);
 	dequeue_rt_entity(rt_se);
@@ -923,7 +924,7 @@ requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se, int head)
 
 static void requeue_task_rt(struct rq *rq, struct task_struct *p, int head)
 {
-	struct sched_rt_entity *rt_se = &p->rt;
+	struct sched_rt_entity *rt_se = &p->se.rt;
 	struct rt_rq *rt_rq;
 
 	for_each_sched_rt_entity(rt_se) {
@@ -962,7 +963,7 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 	 * cold cache anyway.
 	 */
 	if (unlikely(rt_task(rq->curr)) &&
-	    (p->rt.nr_cpus_allowed > 1)) {
+	    (p->se.rt.nr_cpus_allowed > 1)) {
 		int cpu = find_lowest_rq(p);
 
 		return (cpu == -1) ? task_cpu(p) : cpu;
@@ -977,10 +978,10 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 
 static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 {
-	if (rq->curr->rt.nr_cpus_allowed == 1)
+	if (rq->curr->se.rt.nr_cpus_allowed == 1)
 		return;
 
-	if (p->rt.nr_cpus_allowed != 1
+	if (p->se.rt.nr_cpus_allowed != 1
 	    && cpupri_find(&rq->rd->cpupri, p, NULL))
 		return;
 
@@ -1089,15 +1090,15 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 	 * The previous task needs to be made eligible for pushing
 	 * if it is still active
 	 */
-	if (p->se.on_rq && p->rt.nr_cpus_allowed > 1)
+	if (p->se.on_rq && p->se.rt.nr_cpus_allowed > 1)
 		enqueue_pushable_task(rq, p);
 }
 
 static void set_task_rq_rt(struct task_struct *p, unsigned int cpu)
 {
 #ifdef CONFIG_RT_GROUP_SCHED
-	p->rt.rt_rq  = task_group(p)->rt_rq[cpu];
-	p->rt.parent = task_group(p)->rt_se[cpu];
+	p->se.rt.rt_rq  = task_group(p)->rt_rq[cpu];
+	p->se.rt.parent = task_group(p)->rt_se[cpu];
 #endif
 }
 
@@ -1112,7 +1113,7 @@ static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
 {
 	if (!task_running(rq, p) &&
 	    (cpu < 0 || cpumask_test_cpu(cpu, &p->cpus_allowed)) &&
-	    (p->rt.nr_cpus_allowed > 1))
+	    (p->se.rt.nr_cpus_allowed > 1))
 		return 1;
 	return 0;
 }
@@ -1176,7 +1177,7 @@ static int find_lowest_rq(struct task_struct *task)
 	int cpu      = task_cpu(task);
 	cpumask_var_t domain_mask;
 
-	if (task->rt.nr_cpus_allowed == 1)
+	if (task->se.rt.nr_cpus_allowed == 1)
 		return -1; /* No other targets possible */
 
 	if (!cpupri_find(&task_rq(task)->rd->cpupri, task, lowest_mask))
@@ -1300,7 +1301,7 @@ static struct task_struct *pick_next_pushable_task(struct rq *rq)
 
 	BUG_ON(rq->cpu != task_cpu(p));
 	BUG_ON(task_current(rq, p));
-	BUG_ON(p->rt.nr_cpus_allowed <= 1);
+	BUG_ON(p->se.rt.nr_cpus_allowed <= 1);
 
 	BUG_ON(!p->se.on_rq);
 	BUG_ON(!rt_task(p));
@@ -1515,7 +1516,7 @@ static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
 	    has_pushable_tasks(rq) &&
-	    p->rt.nr_cpus_allowed > 1)
+	    p->se.rt.nr_cpus_allowed > 1)
 		push_rt_tasks(rq);
 }
 
@@ -1548,7 +1549,7 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 	 * Update the migration status of the RQ if we have an RT task
 	 * which is running AND changing its weight value.
 	 */
-	if (p->se.on_rq && (weight != p->rt.nr_cpus_allowed)) {
+	if (p->se.on_rq && (weight != p->se.rt.nr_cpus_allowed)) {
 		struct rq *rq = task_rq(p);
 
 		if (!task_current(rq, p)) {
@@ -1558,7 +1559,7 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 			 * the list because we are no longer pushable, or it
 			 * will be requeued.
 			 */
-			if (p->rt.nr_cpus_allowed > 1)
+			if (p->se.rt.nr_cpus_allowed > 1)
 				dequeue_pushable_task(rq, p);
 
 			/*
@@ -1569,9 +1570,9 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 
 		}
 
-		if ((p->rt.nr_cpus_allowed <= 1) && (weight > 1)) {
+		if ((p->se.rt.nr_cpus_allowed <= 1) && (weight > 1)) {
 			rq->rt.rt_nr_migratory++;
-		} else if ((p->rt.nr_cpus_allowed > 1) && (weight <= 1)) {
+		} else if ((p->se.rt.nr_cpus_allowed > 1) && (weight <= 1)) {
 			BUG_ON(!rq->rt.rt_nr_migratory);
 			rq->rt.rt_nr_migratory--;
 		}
@@ -1580,7 +1581,7 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 	}
 
 	cpumask_copy(&p->cpus_allowed, new_mask);
-	p->rt.nr_cpus_allowed = weight;
+	p->se.rt.nr_cpus_allowed = weight;
 }
 
 /* Assumes rq->lock is held */
@@ -1714,9 +1715,9 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 	if (soft != RLIM_INFINITY) {
 		unsigned long next;
 
-		p->rt.timeout++;
+		p->se.rt.timeout++;
 		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
-		if (p->rt.timeout > next)
+		if (p->se.rt.timeout > next)
 			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;
 	}
 }
@@ -1734,16 +1735,16 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	if (p->policy != SCHED_RR)
 		return;
 
-	if (--p->rt.time_slice)
+	if (--p->se.rt.time_slice)
 		return;
 
-	p->rt.time_slice = DEF_TIMESLICE;
+	p->se.rt.time_slice = DEF_TIMESLICE;
 
 	/*
 	 * Requeue to the end of queue if we are not the only element
 	 * on the queue:
 	 */
-	if (p->rt.run_list.prev != p->rt.run_list.next) {
+	if (p->se.rt.run_list.prev != p->se.rt.run_list.next) {
 		requeue_task_rt(rq, p, 0);
 		set_tsk_need_resched(p);
 	}

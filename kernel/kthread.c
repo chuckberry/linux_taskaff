@@ -170,8 +170,8 @@ void kthread_bind(struct task_struct *k, unsigned int cpu)
 	}
 	set_task_cpu(k, cpu);
 	k->cpus_allowed = cpumask_of_cpu(cpu);
-	if(rt_task(k))
-		k->rt.nr_cpus_allowed = 1;
+	if (rt_task(k))
+		k->se.rt.nr_cpus_allowed = 1;
 	k->flags |= PF_THREAD_BOUND;
 }
 EXPORT_SYMBOL(kthread_bind);
