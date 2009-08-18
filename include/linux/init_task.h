@@ -128,11 +128,6 @@ extern struct cred init_cred;
 			.group_node = LIST_HEAD_INIT(tsk.se.fair.group_node) \
 		} } 							\
 	},								\
-	.rt		= {						\
-		.run_list	= LIST_HEAD_INIT(tsk.rt.run_list),	\
-		.time_slice	= HZ, 					\
-		.nr_cpus_allowed = NR_CPUS,				\
-	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
 	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO), \
 	.ptraced	= LIST_HEAD_INIT(tsk.ptraced),			\

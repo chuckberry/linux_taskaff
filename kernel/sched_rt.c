@@ -868,6 +868,8 @@ static void assign_class_rt(struct task_struct *p)
 {
 	p->sched_class = &rt_sched_class;
 	p->rt.nr_cpus_allowed = cpumask_weight(&p->cpus_allowed);
+	INIT_LIST_HEAD(&p->rt.run_list);
+	p->rt.time_slice = HZ;
 }
 
 
