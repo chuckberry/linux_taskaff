@@ -1927,6 +1927,10 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 {
 	s64 delta;
 
+	/* Only fair tasks consider cache-hot */
+	if (p->sched_class != &fair_sched_class)
+		return 0;
+
 	/*
 	 * Buddy candidates are cache hot:
 	 */
@@ -1934,9 +1938,6 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 			(&p->se == cfs_rq_of(&p->se)->next ||
 			 &p->se == cfs_rq_of(&p->se)->last))
 		return 1;
-
-	if (p->sched_class != &fair_sched_class)
-		return 0;
 
 	if (sysctl_sched_migration_cost == -1)
 		return 1;
