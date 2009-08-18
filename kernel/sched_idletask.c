@@ -5,6 +5,8 @@
  *  handled in sched_fair.c)
  */
 
+static const struct sched_class idle_sched_class;
+
 #ifdef CONFIG_SMP
 static int select_task_rq_idle(struct task_struct *p, int sync)
 {
@@ -26,6 +28,12 @@ static struct task_struct *pick_next_task_idle(struct rq *rq)
 	calc_load_account_active(rq);
 	return rq->idle;
 }
+
+static void assign_class_idle(struct task_struct *p)
+{
+	p->sched_class = &idle_sched_class;
+}
+
 
 /*
  * It is not legal to sleep in the idle task - print a warning
@@ -107,6 +115,9 @@ static void prio_changed_idle(struct rq *rq, struct task_struct *p,
  */
 static const struct sched_class idle_sched_class = {
 	/* .next is NULL */
+
+	.assign_class		= assign_class_idle,
+
 	/* no enqueue/yield_task for idle tasks */
 
 	/* dequeue is not valid, we print a debug message there: */

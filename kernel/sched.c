@@ -2609,7 +2609,7 @@ void sched_fork(struct task_struct *p, int clone_flags)
 	 */
 	p->prio = current->normal_prio;
 	if (!rt_prio(p->prio))
-		p->sched_class = &fair_sched_class;
+		fair_sched_class.assign_class(p);
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	if (likely(sched_info_on()))
@@ -5870,9 +5870,9 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 		p->sched_class->put_prev_task(rq, p);
 
 	if (rt_prio(prio))
-		p->sched_class = &rt_sched_class;
+		rt_sched_class.assign_class(p);
 	else
-		p->sched_class = &fair_sched_class;
+		fair_sched_class.assign_class(p);
 
 	p->prio = prio;
 
@@ -6053,11 +6053,11 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 	case SCHED_NORMAL:
 	case SCHED_BATCH:
 	case SCHED_IDLE:
-		p->sched_class = &fair_sched_class;
+		fair_sched_class.assign_class(p);
 		break;
 	case SCHED_FIFO:
 	case SCHED_RR:
-		p->sched_class = &rt_sched_class;
+		rt_sched_class.assign_class(p);
 		break;
 	}
 
@@ -6822,7 +6822,7 @@ void show_state_filter(unsigned long state_filter)
 
 void __cpuinit init_idle_bootup_task(struct task_struct *idle)
 {
-	idle->sched_class = &idle_sched_class;
+	idle_sched_class.assign_class(idle);
 }
 
 /**
@@ -6841,7 +6841,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	/* Pretend to be a fair task to initialize the right fields
 	 * in __set_task_cpu
 	 */
-	idle->sched_class = &fair_sched_class;
+	fair_sched_class.assign_class(idle);
 
 	spin_lock_irqsave(&rq->lock, flags);
 
@@ -6867,7 +6867,7 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	/*
 	 * The idle tasks have their own, simple scheduling class:
 	 */
-	idle->sched_class = &idle_sched_class;
+	idle_sched_class.assign_class(idle);
 	ftrace_graph_init_task(idle);
 }
 
@@ -7535,7 +7535,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		deactivate_task(rq, rq->idle, 0);
 		rq->idle->static_prio = MAX_PRIO;
 		__setscheduler(rq, rq->idle, SCHED_NORMAL, 0);
-		rq->idle->sched_class = &idle_sched_class;
+		idle_sched_class.assign_class(rq->idle);
 		migrate_dead_tasks(cpu);
 		spin_unlock_irq(&rq->lock);
 		cpuset_unlock();
@@ -9353,7 +9353,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &fair_sched_class;
+	fair_sched_class.assign_class(current);
 
 	/* Allocate the nohz_cpu_mask if CONFIG_CPUMASK_OFFSTACK */
 	alloc_cpumask_var(&nohz_cpu_mask, GFP_NOWAIT);

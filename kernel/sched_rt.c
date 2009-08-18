@@ -3,6 +3,9 @@
  * policies)
  */
 
+static const struct sched_class rt_sched_class;
+
+
 static inline struct task_struct *rt_task_of(struct sched_rt_entity *rt_se)
 {
 	return container_of(rt_se, struct task_struct, rt);
@@ -860,6 +863,12 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
 			__enqueue_rt_entity(rt_se);
 	}
 }
+
+static void assign_class_rt(struct task_struct *p)
+{
+	p->sched_class = &rt_sched_class;
+}
+
 
 /*
  * Adding/removing a task to/from a priority array:
@@ -1749,6 +1758,9 @@ static void set_curr_task_rt(struct rq *rq)
 
 static const struct sched_class rt_sched_class = {
 	.next			= &fair_sched_class,
+
+	.assign_class		= assign_class_rt,
+
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
 	.yield_task		= yield_task_rt,

@@ -967,6 +967,11 @@ static inline void hrtick_update(struct rq *rq)
 }
 #endif
 
+static void assign_class_fair(struct task_struct *p)
+{
+	p->sched_class = &fair_sched_class;
+}
+
 /*
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and
@@ -1833,6 +1838,9 @@ static void moved_group_fair(struct task_struct *p)
  */
 static const struct sched_class fair_sched_class = {
 	.next			= &idle_sched_class,
+
+	.assign_class		= assign_class_fair,
+
 	.enqueue_task		= enqueue_task_fair,
 	.dequeue_task		= dequeue_task_fair,
 	.yield_task		= yield_task_fair,
