@@ -867,6 +867,7 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
 static void assign_class_rt(struct task_struct *p)
 {
 	p->sched_class = &rt_sched_class;
+	p->rt.nr_cpus_allowed = cpumask_weight(&p->cpus_allowed);
 }
 
 
