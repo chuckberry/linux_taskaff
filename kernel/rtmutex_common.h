@@ -49,6 +49,7 @@ struct rt_mutex_waiter {
 	struct plist_node	pi_list_entry;
 	struct task_struct	*task;
 	struct rt_mutex		*lock;
+	struct sched_fair_entity fair_se;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 	unsigned long		ip;
 	struct pid		*deadlock_task_pid;
