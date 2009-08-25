@@ -6071,6 +6071,21 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 	/* we are holding p->pi_lock already */
 	p->prio = rt_mutex_getprio(p);
 	set_load_weight(p);
+
+#if defined(CONFIG_RT_GROUP_SCHED) && defined(CONFIG_FAIR_GROUP_SCHED)
+	if (rt_task(p))
+		p->rt.my_q = NULL;
+	else
+		p->se.fair.my_q = NULL;
+#elif defined(CONFIG_RT_GROUP_SCHED)
+	if (rt_task(p))
+		p->rt.my_q = NULL;
+#elif defined(CONFIG_FAIR_GROUP_SCHED)
+	if (!rt_task(p))
+		p->se.fair.my_q = NULL;
+#endif
+
+	set_task_rq(p, task_cpu(p));
 }
 
 /*
