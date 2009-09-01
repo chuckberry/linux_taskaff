@@ -6582,6 +6582,58 @@ static int get_user_cpu_mask(unsigned long __user *user_mask_ptr, unsigned len,
 }
 
 /**
+ * sys_sched_add_taskaffinity - add a task current depends upon. It will force
+ * current to run in the same cpu as the other task
+ * @pid: pid of the task current depends
+ */
+SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
+{
+	struct task_struct *p;
+	int retval;
+
+	printk(KERN_WARNING "syscall sched_add_taskaffinity entering...");
+
+	if (pid < 0)
+		return -EINVAL;
+
+	retval = -ESRCH;
+	read_lock(&tasklist_lock);
+	p = find_process_by_pid(pid);
+	if (p)
+		retval = sched_add_taskaffinity(p);
+
+	read_unlock(&tasklist_lock);
+	printk(KERN_WARNING "syscall sched_add_taskaffinity exiting...");
+	return retval;
+}
+
+/**
+ * sys_sched_del_taskaffinity - remove a task from the list of tasks 'current'
+ * depends upon
+ * @pid: pid of the task to remove
+ */
+SYSCALL_DEFINE1(sched_del_taskaffinity, pid_t, pid)
+{
+	struct task_struct *p;
+	int retval;
+
+	printk(KERN_WARNING "syscall sched_del_taskaffinity entering...");
+
+	if (pid < 0)
+		return -EINVAL;
+
+	retval = -ESRCH;
+	read_lock(&tasklist_lock);
+	p = find_process_by_pid(pid);
+	if (p)
+		retval = sched_del_taskaffinity(current, p);
+
+	read_unlock(&tasklist_lock);
+	printk(KERN_WARNING "syscall sched_del_taskaffinity exiting...");
+	return retval;
+}
+
+/**
  * sys_sched_setaffinity - set the cpu affinity of a process
  * @pid: pid of the process
  * @len: length in bytes of the bitmask pointed to by user_mask_ptr

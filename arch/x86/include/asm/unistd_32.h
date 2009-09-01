@@ -342,6 +342,8 @@
 #define __NR_pwritev		334
 #define __NR_rt_tgsigqueueinfo	335
 #define __NR_perf_counter_open	336
+#define __NR_sched_add_taskaffinity 337
+#define __NR_sched_del_taskaffinity 338
 
 #ifdef __KERNEL__
 

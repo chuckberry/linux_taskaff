@@ -661,6 +661,11 @@ __SYSCALL(__NR_pwritev, sys_pwritev)
 __SYSCALL(__NR_rt_tgsigqueueinfo, sys_rt_tgsigqueueinfo)
 #define __NR_perf_counter_open			298
 __SYSCALL(__NR_perf_counter_open, sys_perf_counter_open)
+#define __NR_sched_add_taskaffinity		299
+__SYSCALL(__NR_sched_add_taskaffinity, sys_sched_add_taskaffinity)
+#define __NR_sched_del_taskaffinity		300
+__SYSCALL(__NR_sched_del_taskaffinity, sys_sched_del_taskaffinity)
+
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
