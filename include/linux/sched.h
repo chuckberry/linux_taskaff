@@ -1080,6 +1080,16 @@ struct load_weight {
 	unsigned long weight, inv_weight;
 };
 
+struct task_affinity_node {
+	struct list_head list;
+	struct task_struct *task;
+};
+
+struct task_affinity {
+	struct list_head affinity_list;
+	struct list_head followme_list;
+};
+
 #ifdef CONFIG_SCHEDSTATS
 struct sched_statistics {
 	u64 wait_start;
@@ -1225,6 +1235,7 @@ struct task_struct {
 	struct sched_info sched_info;
 #endif
 
+	struct task_affinity task_affinity;
 	struct list_head tasks;
 	struct plist_node pushable_tasks;
 
