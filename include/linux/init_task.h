@@ -129,6 +129,12 @@ extern struct cred init_cred;
 		} } 							\
 	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
+	.task_affinity 	= {						\
+		.affinity_list	=					\
+			LIST_HEAD_INIT(tsk.task_affinity.affinity_list),\
+		.followme_list	=					\
+			LIST_HEAD_INIT(tsk.task_affinity.followme_list)	\
+	},								\
 	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO), \
 	.ptraced	= LIST_HEAD_INIT(tsk.ptraced),			\
 	.ptrace_entry	= LIST_HEAD_INIT(tsk.ptrace_entry),		\

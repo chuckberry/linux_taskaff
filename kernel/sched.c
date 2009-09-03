@@ -2585,6 +2585,8 @@ static void __sched_fork(struct task_struct *p)
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
 #endif
+	INIT_LIST_HEAD(&p->task_affinity.affinity_list);
+	INIT_LIST_HEAD(&p->task_affinity.followme_list);
 
 	/*
 	 * We mark the process as running here, but have not actually
