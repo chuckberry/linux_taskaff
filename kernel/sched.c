@@ -6395,6 +6395,16 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 
+	/*
+	 * This task is set to follow other tasks. It's not allowed to
+	 * manually set cpu affinity since this would overly complicate the
+	 * task affinity logic
+	 */
+	if(!list_empty(&p->task_affinity.affinity_list)) {
+		retval = -EPERM;
+		goto out_put_task;
+	}
+
 	if (!alloc_cpumask_var(&cpus_allowed, GFP_KERNEL)) {
 		retval = -ENOMEM;
 		goto out_put_task;
