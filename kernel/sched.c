@@ -6422,6 +6422,9 @@ long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p)
 	list_for_each(list, &me->task_affinity.followme_list) {
 		struct task_affinity_node *node =
 			list_entry(list, struct task_affinity_node, list);
+		/* If task 'me' is exiting, this will be true on first
+		 * iteration
+		 */
 		if (node->task == p) {
 			retval = 0;
 			list_del(list);
@@ -6446,6 +6449,10 @@ long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 	list_for_each(list, &me->task_affinity.affinity_list) {
 		struct task_affinity_node *node =
 			list_entry(list, struct task_affinity_node, list);
+
+		/* If task 'me' is exiting, this will be true on firs
+		 * iteration
+		 */
 		if (node->task == p) {
 			/* we found the task we want to remove, but first we
 			 * must remove current from the followme list of p
@@ -6462,6 +6469,28 @@ long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 	/* TODO: restore cpumask if current doesn't depend on anyone */
 
 	return retval;
+}
+
+/**
+ * task_affinity_notify_exit - notify all tasks dependent on me that I am
+ * exiting, therefore references to me must be deleted.
+ * @p: exiting task
+ */
+void task_affinity_notify_exit(struct task_struct *p)
+{
+	struct task_struct *tsk, *tmp;
+
+	/* Remove all tasks I'm following */
+	list_for_each_entry_safe(tsk, tmp, &p->task_affinity.affinity_list,
+			task_affinity.affinity_list) {
+		sched_del_taskaffinity(p, tsk);
+	}
+
+	/* Remove tasks are following me*/
+	list_for_each_entry_safe(tsk, tmp, &p->task_affinity.followme_list,
+			task_affinity.followme_list) {
+		sched_del_taskaffinity(p, tsk);
+	}
 }
 
 long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)

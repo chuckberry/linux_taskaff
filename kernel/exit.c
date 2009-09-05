@@ -924,6 +924,8 @@ NORET_TYPE void do_exit(long code)
 
 	exit_irq_thread();
 
+	task_affinity_notify_exit(tsk);
+
 	exit_signals(tsk);  /* sets PF_EXITING */
 	/*
 	 * tsk->flags are checked in the futex code to protect against
