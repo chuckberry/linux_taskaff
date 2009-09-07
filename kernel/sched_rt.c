@@ -940,10 +940,29 @@ static void yield_task_rt(struct rq *rq)
 
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
+static void set_cpus_allowed_rt(struct task_struct *p,
+		const struct cpumask *new_mask);
 
 static int select_task_rq_rt(struct task_struct *p, int sync)
 {
-	struct rq *rq = task_rq(p);
+	struct task_struct *tsk;
+	struct cpumask dep_mask = CPU_MASK_NONE;
+	int cpu, le;
+
+	le = list_empty(&p->task_affinity.affinity_list);
+
+	if (!le) {
+		/*
+		 * Force cpu_mask to have only cpus of tasks p depends upon
+		 */
+		list_for_each_entry(tsk, &p->task_affinity.affinity_list,
+				task_affinity.affinity_list) {
+			cpumask_or(&dep_mask, &dep_mask,
+					cpumask_of(task_cpu(tsk)));
+		}
+
+		set_cpus_allowed_rt(p, &dep_mask);
+	}
 
 	/*
 	 * If the current task is an RT task, then
@@ -962,17 +981,12 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 	 * that is just being woken and probably will have
 	 * cold cache anyway.
 	 */
-	if (unlikely(rt_task(rq->curr)) &&
-	    (p->se.rt.nr_cpus_allowed > 1)) {
-		int cpu = find_lowest_rq(p);
+	cpu = find_lowest_rq(p);
+	if (cpu >= 0)
+		return cpu;
 
-		return (cpu == -1) ? task_cpu(p) : cpu;
-	}
-
-	/*
-	 * Otherwise, just let it ride on the affined RQ and the
-	 * post-schedule router will push the preempted task away
-	 */
+	WARN(!le, KERN_WARNING "Task %s was not able to follow its dependencies. "
+			"Waking it up on %d.", p->comm, task_cpu(p));
 	return task_cpu(p);
 }
 
