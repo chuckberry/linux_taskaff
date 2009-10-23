@@ -957,12 +957,16 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 		 */
 		list_for_each_entry(tsk, &p->task_affinity.affinity_list,
 				task_affinity.affinity_list) {
+			printk(KERN_WARNING "[%d] Task %d allows cpu #%d",
+					p->pid, tsk->pid, task_cpu(tsk));
 			cpumask_or(&dep_mask, &dep_mask,
 					cpumask_of(task_cpu(tsk)));
 		}
 
 		set_cpus_allowed_rt(p, &dep_mask);
 	}
+	else
+		printk(KERN_WARNING "[%d] Empty affinity_list", p->pid);
 
 	/*
 	 * If the current task is an RT task, then
