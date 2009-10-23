@@ -939,7 +939,7 @@ static void yield_task_rt(struct rq *rq)
 }
 
 #ifdef CONFIG_SMP
-static int find_lowest_rq(struct task_struct *task);
+static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask);
 static void set_cpus_allowed_rt(struct task_struct *p,
 		const struct cpumask *new_mask);
 
@@ -951,11 +951,11 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 
 	le = list_empty(&p->task_affinity.affinity_list);
 
+	/* If list of tasks p is affine to is not empty,
+	 * create a mask out of the CPUs they ran last time
+	 * and make p run in one of these CPUs
+	 */
 	if (!le) {
-		/*
-		 * Force cpu_mask to have only cpus of tasks p depends upon
-		 */
-
 		list_for_each_entry(node,
 				&p->task_affinity.affinity_list, list) {
 			struct task_struct *tsk = node->task;
@@ -964,35 +964,38 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 			printk(KERN_WARNING "[%d] Task %d allows cpu #%d",
 					p->pid, tsk->pid, task_cpu(tsk));
 		}
-
-		set_cpus_allowed_rt(p, &dep_mask);
+		cpu = find_lowest_rq(p, &dep_mask);
 	}
-	else
+	else {
+		/* Otherwise, just try to find the optimal CPU */
 		printk(KERN_WARNING "[%d] Empty affinity_list", p->pid);
+		
+		/*
+		 * If the current task is an RT task, then
+		 * try to see if we can wake this RT task up on another
+		 * runqueue. Otherwise simply start this RT task
+		 * on its current runqueue.
+		 *
+		 * We want to avoid overloading runqueues. Even if
+		 * the RT task is of higher priority than the current RT task.
+		 * RT tasks behave differently than other tasks. If
+		 * one gets preempted, we try to push it off to another queue.
+		 * So trying to keep a preempting RT task on the same
+		 * cache hot CPU will force the running RT task to
+		 * a cold CPU. So we waste all the cache for the lower
+		 * RT task in hopes of saving some of a RT task
+		 * that is just being woken and probably will have
+		 * cold cache anyway.
+		 */
+		cpu = find_lowest_rq(p, NULL);
+	}
 
-	/*
-	 * If the current task is an RT task, then
-	 * try to see if we can wake this RT task up on another
-	 * runqueue. Otherwise simply start this RT task
-	 * on its current runqueue.
-	 *
-	 * We want to avoid overloading runqueues. Even if
-	 * the RT task is of higher priority than the current RT task.
-	 * RT tasks behave differently than other tasks. If
-	 * one gets preempted, we try to push it off to another queue.
-	 * So trying to keep a preempting RT task on the same
-	 * cache hot CPU will force the running RT task to
-	 * a cold CPU. So we waste all the cache for the lower
-	 * RT task in hopes of saving some of a RT task
-	 * that is just being woken and probably will have
-	 * cold cache anyway.
-	 */
-	cpu = find_lowest_rq(p);
 	if (cpu >= 0)
 		return cpu;
 
-	WARN(!le, KERN_WARNING "Task %s was not able to follow its dependencies. "
-			"Waking it up on %d.", p->comm, task_cpu(p));
+	if(!le)
+		printk(KERN_WARNING "Task %d was not able to follow its dependencies. "
+			"Waking it up on %d.", p->pid, task_cpu(p));
 	return task_cpu(p);
 }
 
@@ -1189,13 +1192,23 @@ static inline int pick_optimal_cpu(int this_cpu,
 	return -1;
 }
 
-static int find_lowest_rq(struct task_struct *task)
+static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask)
 {
 	struct sched_domain *sd;
 	struct cpumask *lowest_mask = __get_cpu_var(local_cpu_mask);
 	int this_cpu = smp_processor_id();
 	int cpu      = task_cpu(task);
 	cpumask_var_t domain_mask;
+
+	if (dep_mask) {
+		unsigned int i;
+		cpumask_and(dep_mask, dep_mask, &task->cpus_allowed);
+		for_each_cpu(i, dep_mask) {
+			if (cpumask_test_cpu(i, dep_mask))
+				return (i);
+		}
+		return -1;
+	}
 
 	if (task->se.rt.nr_cpus_allowed == 1)
 		return -1; /* No other targets possible */
@@ -1265,7 +1278,7 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 	int cpu;
 
 	for (tries = 0; tries < RT_MAX_TRIES; tries++) {
-		cpu = find_lowest_rq(task);
+		cpu = find_lowest_rq(task, NULL);
 
 		if ((cpu == -1) || (cpu == rq->cpu))
 			break;
