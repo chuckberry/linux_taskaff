@@ -945,7 +945,7 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 
 static int select_task_rq_rt(struct task_struct *p, int sync)
 {
-	struct task_struct *tsk;
+	struct task_affinity_node *node;
 	struct cpumask dep_mask = CPU_MASK_NONE;
 	int cpu, le;
 
@@ -955,12 +955,14 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 		/*
 		 * Force cpu_mask to have only cpus of tasks p depends upon
 		 */
-		list_for_each_entry(tsk, &p->task_affinity.affinity_list,
-				task_affinity.affinity_list) {
-			printk(KERN_WARNING "[%d] Task %d allows cpu #%d",
-					p->pid, tsk->pid, task_cpu(tsk));
+
+		list_for_each_entry(node,
+				&p->task_affinity.affinity_list, list) {
+			struct task_struct *tsk = node->task;
 			cpumask_or(&dep_mask, &dep_mask,
 					cpumask_of(task_cpu(tsk)));
+			printk(KERN_WARNING "[%d] Task %d allows cpu #%d",
+					p->pid, tsk->pid, task_cpu(tsk));
 		}
 
 		set_cpus_allowed_rt(p, &dep_mask);

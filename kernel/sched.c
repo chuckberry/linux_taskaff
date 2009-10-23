@@ -6478,17 +6478,18 @@ long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
  */
 void task_affinity_notify_exit(struct task_struct *p)
 {
-	struct task_struct *tsk, *tmp;
+	struct task_struct *tsk;
+	struct task_affinity_node *node, *tmp;
 
 	/* Remove all tasks I'm following */
-	list_for_each_entry_safe(tsk, tmp, &p->task_affinity.affinity_list,
-			task_affinity.affinity_list) {
+	list_for_each_entry_safe(node, tmp, &p->task_affinity.affinity_list, list) {
+		tsk = node->task;
 		sched_del_taskaffinity(p, tsk);
 	}
 
 	/* Remove tasks are following me*/
-	list_for_each_entry_safe(tsk, tmp, &p->task_affinity.followme_list,
-			task_affinity.followme_list) {
+	list_for_each_entry_safe(node, tmp, &p->task_affinity.followme_list, list) {
+		tsk = node->task;
 		sched_del_taskaffinity(p, tsk);
 	}
 }
