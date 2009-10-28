@@ -965,6 +965,8 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 					p->pid, tsk->pid, task_cpu(tsk));
 		}
 		cpu = find_lowest_rq(p, &dep_mask);
+		printk(KERN_WARNING "[%d] find_lowest_rq returned %d",
+				p->pid, cpu);
 	}
 	else {
 		/* Otherwise, just try to find the optimal CPU */
@@ -1200,14 +1202,10 @@ static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask)
 	int cpu      = task_cpu(task);
 	cpumask_var_t domain_mask;
 
-	if (dep_mask) {
-		unsigned int i;
+	if (dep_mask != NULL) {
 		cpumask_and(dep_mask, dep_mask, &task->cpus_allowed);
-		for_each_cpu(i, dep_mask) {
-			if (cpumask_test_cpu(i, dep_mask))
-				return (i);
-		}
-		return -1;
+		cpu = cpumask_next(-1, dep_mask);
+		return cpu > nr_cpu_ids ? -1 : cpu;
 	}
 
 	if (task->se.rt.nr_cpus_allowed == 1)
@@ -1548,9 +1546,11 @@ static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
 {
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
+	    list_empty(&p->task_affinity.affinity_list) &&
 	    has_pushable_tasks(rq) &&
 	    p->se.rt.nr_cpus_allowed > 1)
 		push_rt_tasks(rq);
+		return;
 }
 
 static unsigned long
