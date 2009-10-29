@@ -886,7 +886,8 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 
 	enqueue_rt_entity(rt_se);
 
-	if (!task_current(rq, p) && p->se.rt.nr_cpus_allowed > 1)
+	if (!task_current(rq, p) && p->se.rt.nr_cpus_allowed > 1 &&
+			list_empty(&p->task_affinity.affinity_list))
 		enqueue_pushable_task(rq, p);
 
 	inc_cpu_load(rq, p->se.load.weight);
@@ -1004,6 +1005,9 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 {
 	if (rq->curr->se.rt.nr_cpus_allowed == 1)
+		return;
+
+	if (!list_empty(&rq->curr->task_affinity.affinity_list))
 		return;
 
 	if (p->se.rt.nr_cpus_allowed != 1
