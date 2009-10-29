@@ -970,9 +970,6 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 				p->pid, cpu);
 	}
 	else {
-		/* Otherwise, just try to find the optimal CPU */
-		printk(KERN_WARNING "[%d] Empty affinity_list", p->pid);
-		
 		/*
 		 * If the current task is an RT task, then
 		 * try to see if we can wake this RT task up on another
