@@ -962,12 +962,8 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 			struct task_struct *tsk = node->task;
 			cpumask_or(&dep_mask, &dep_mask,
 					cpumask_of(task_cpu(tsk)));
-			printk(KERN_WARNING "[%d] Task %d allows cpu #%d",
-					p->pid, tsk->pid, task_cpu(tsk));
 		}
 		cpu = find_lowest_rq(p, &dep_mask);
-		printk(KERN_WARNING "[%d] find_lowest_rq returned %d",
-				p->pid, cpu);
 	}
 	else {
 		/*
