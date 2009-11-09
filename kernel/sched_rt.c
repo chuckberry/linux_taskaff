@@ -1191,6 +1191,29 @@ static inline int pick_optimal_cpu(int this_cpu,
 	return -1;
 }
 
+static inline int find_least_loaded_rt_rq (struct cpumask *mask) 
+{
+	int best_cpu = cpumask_first(mask);
+	struct rt_rq* rt_rq = &cpu_rq(best_cpu)->rt;
+	unsigned long best_nr_rt = rt_rq->rt_nr_running;
+	int cpu;
+
+	/* No cpu set in mask */
+	if (best_cpu >= nr_cpu_ids)
+		return -1;
+
+	for_each_cpu(cpu, mask) {
+		rt_rq = &cpu_rq(cpu)->rt;
+		if (rt_rq->rt_nr_running < best_nr_rt) {
+			best_cpu = cpu;
+			best_nr_rt =  rt_rq->rt_nr_running;
+			if (!best_nr_rt)
+				return best_cpu;
+		}
+	}
+	return best_cpu;
+}
+
 static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask)
 {
 	struct sched_domain *sd;
@@ -1201,8 +1224,12 @@ static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask)
 
 	if (dep_mask != NULL) {
 		cpumask_and(dep_mask, dep_mask, &task->cpus_allowed);
-		cpu = cpumask_next(-1, dep_mask);
-		return cpu > nr_cpu_ids ? -1 : cpu;
+
+		/* Find which of allowed CPUs is the least loaded, i.e.
+		 * the one that has least RT tasks. Although this is not
+		 * a true "least loaded", it's the desired behavior in case
+		 * of RT tasks and dep_mask != NULL */
+		return find_least_loaded_rt_rq(dep_mask);
 	}
 
 	if (task->se.rt.nr_cpus_allowed == 1)
