@@ -6450,7 +6450,7 @@ long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 		struct task_affinity_node *node =
 			list_entry(list, struct task_affinity_node, list);
 
-		/* If task 'me' is exiting, this will be true on firs
+		/* If task 'me' is exiting, this will be true on first
 		 * iteration
 		 */
 		if (node->task == p) {
@@ -6465,8 +6465,6 @@ long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 			break;
 		}
 	}
-
-	/* TODO: restore cpumask if current doesn't depend on anyone */
 
 	return retval;
 }
@@ -6592,8 +6590,6 @@ SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
 	struct task_struct *p;
 	int retval;
 
-	printk(KERN_WARNING "syscall sched_add_taskaffinity entering...");
-
 	if (pid < 0)
 		return -EINVAL;
 
@@ -6604,7 +6600,6 @@ SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
 		retval = sched_add_taskaffinity(p);
 
 	read_unlock(&tasklist_lock);
-	printk(KERN_WARNING "syscall sched_add_taskaffinity exiting...");
 	return retval;
 }
 
@@ -6618,8 +6613,6 @@ SYSCALL_DEFINE1(sched_del_taskaffinity, pid_t, pid)
 	struct task_struct *p;
 	int retval;
 
-	printk(KERN_WARNING "syscall sched_del_taskaffinity entering...");
-
 	if (pid < 0)
 		return -EINVAL;
 
@@ -6630,7 +6623,6 @@ SYSCALL_DEFINE1(sched_del_taskaffinity, pid_t, pid)
 		retval = sched_del_taskaffinity(current, p);
 
 	read_unlock(&tasklist_lock);
-	printk(KERN_WARNING "syscall sched_del_taskaffinity exiting...");
 	return retval;
 }
 
