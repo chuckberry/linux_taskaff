@@ -6605,8 +6605,6 @@ SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
 
 	read_unlock(&tasklist_lock);
 	printk(KERN_WARNING "syscall sched_add_taskaffinity exiting...");
-	if (!retval)
-		printk(KERN_WARNING "[%d] follows [%d]", current->pid, pid);
 	return retval;
 }
 
