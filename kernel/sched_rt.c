@@ -948,6 +948,7 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 {
 	struct task_affinity_node *node;
 	struct cpumask dep_mask = CPU_MASK_NONE;
+	struct cpumask *dep_mask_ptr = NULL;
 	int cpu, le;
 
 	le = list_empty(&p->task_affinity.affinity_list);
@@ -963,28 +964,38 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 			cpumask_or(&dep_mask, &dep_mask,
 					cpumask_of(task_cpu(tsk)));
 		}
-		cpu = find_lowest_rq(p, &dep_mask);
+		dep_mask_ptr = &dep_mask;
 	}
-	else {
-		/*
-		 * If the current task is an RT task, then
-		 * try to see if we can wake this RT task up on another
-		 * runqueue. Otherwise simply start this RT task
-		 * on its current runqueue.
-		 *
-		 * We want to avoid overloading runqueues. Even if
-		 * the RT task is of higher priority than the current RT task.
-		 * RT tasks behave differently than other tasks. If
-		 * one gets preempted, we try to push it off to another queue.
-		 * So trying to keep a preempting RT task on the same
-		 * cache hot CPU will force the running RT task to
-		 * a cold CPU. So we waste all the cache for the lower
-		 * RT task in hopes of saving some of a RT task
-		 * that is just being woken and probably will have
-		 * cold cache anyway.
-		 */
-		cpu = find_lowest_rq(p, NULL);
+	else if (!list_empty(&p->task_affinity.followme_list)) {
+		/* Is current in follome_list of p, and does p have the same cpu
+		 * of current? */
+		list_for_each_entry(node,
+				&p->task_affinity.followme_list, list) {
+			struct task_struct *tsk = node->task;
+			cpu = task_cpu(p);
+			if (tsk == current && cpu == smp_processor_id())
+				return cpu;
+		}
 	}
+
+	/*
+	 * If the current task is an RT task, then
+	 * try to see if we can wake this RT task up on another
+	 * runqueue. Otherwise simply start this RT task
+	 * on its current runqueue.
+	 *
+	 * We want to avoid overloading runqueues. Even if
+	 * the RT task is of higher priority than the current RT task.
+	 * RT tasks behave differently than other tasks. If
+	 * one gets preempted, we try to push it off to another queue.
+	 * So trying to keep a preempting RT task on the same
+	 * cache hot CPU will force the running RT task to
+	 * a cold CPU. So we waste all the cache for the lower
+	 * RT task in hopes of saving some of a RT task
+	 * that is just being woken and probably will have
+	 * cold cache anyway.
+	 */
+	cpu = find_lowest_rq(p, dep_mask_ptr);
 
 	if (cpu >= 0)
 		return cpu;
