@@ -973,8 +973,10 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 				&p->task_affinity.followme_list, list) {
 			struct task_struct *tsk = node->task;
 			cpu = task_cpu(p);
-			if (tsk == current && cpu == smp_processor_id())
+			if (task_current(this_rq(),tsk) &&
+					cpu == smp_processor_id()) {
 				return cpu;
+			}
 		}
 	}
 
