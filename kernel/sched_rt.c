@@ -941,21 +941,45 @@ static void yield_task_rt(struct rq *rq)
 
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask);
-static void set_cpus_allowed_rt(struct task_struct *p,
-		const struct cpumask *new_mask);
+
+static inline int find_least_loaded_rt_rq (struct cpumask *mask) 
+{
+	int best_cpu = cpumask_first(mask);
+	struct rt_rq* rt_rq = &cpu_rq(best_cpu)->rt;
+	unsigned long best_nr_rt = rt_rq->rt_nr_running;
+	int cpu;
+
+	/* No cpu set in mask */
+	if (best_cpu >= nr_cpu_ids)
+		return -1;
+
+	for_each_cpu(cpu, mask) {
+		rt_rq = &cpu_rq(cpu)->rt;
+		if (rt_rq->rt_nr_running < best_nr_rt) {
+			best_cpu = cpu;
+			best_nr_rt =  rt_rq->rt_nr_running;
+			if (!best_nr_rt)
+				return best_cpu;
+		}
+	}
+	return best_cpu;
+}
 
 static int select_task_rq_rt(struct task_struct *p, int sync)
 {
 	struct task_affinity_node *node;
 	struct cpumask dep_mask = CPU_MASK_NONE;
-	struct cpumask *dep_mask_ptr = NULL;
-	int cpu, le;
-
-	le = list_empty(&p->task_affinity.affinity_list);
+	int cpu = smp_processor_id();
+	int le = list_empty(&p->task_affinity.affinity_list);
 
 	/* If list of tasks p is affine to is not empty,
 	 * create a mask out of the CPUs they ran last time
 	 * and make p run in one of these CPUs
+	 *
+	 * We do our best to wake p up on this cpu if current is about to yield
+	 * the it. There are 2 cases we can figure this out:
+	 * 	o current is not TASK_RUNNING anymore;
+	 * 	o current is in the followme_list of the waking up task
 	 */
 	if (!le) {
 		list_for_each_entry(node,
@@ -964,47 +988,35 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 			cpumask_or(&dep_mask, &dep_mask,
 					cpumask_of(task_cpu(tsk)));
 		}
-		dep_mask_ptr = &dep_mask;
+		cpumask_and(&dep_mask, &dep_mask, &p->cpus_allowed);
+
+		/* Find which of allowed CPUs is the least loaded, i.e.
+		 * the one that has less RT tasks. Although this is not
+		 * a true "least loaded", it's the desired behavior in case
+		 * of RT tasks
+		 */
+		if (!cpumask_empty(&dep_mask))
+			return find_least_loaded_rt_rq(&dep_mask);
+		else
+			printk(KERN_WARNING "Task %d was not able to follow its"
+					" dependencies. Waking it up on %d.",
+					p->pid, task_cpu(p));
 	}
-	else if (!list_empty(&p->task_affinity.followme_list)) {
-		/* Is current in follome_list of p, and does p have the same cpu
-		 * of current? */
-		list_for_each_entry(node,
-				&p->task_affinity.followme_list, list) {
-			struct task_struct *tsk = node->task;
-			cpu = task_cpu(p);
-			if (task_current(this_rq(),tsk) &&
-					cpu == smp_processor_id()) {
-				return cpu;
-			}
-		}
+	if (current->state != TASK_RUNNING) {
+		if (cpu_isset(cpu, p->cpus_allowed))
+			return cpu;
 	}
 
-	/*
-	 * If the current task is an RT task, then
-	 * try to see if we can wake this RT task up on another
-	 * runqueue. Otherwise simply start this RT task
-	 * on its current runqueue.
-	 *
-	 * We want to avoid overloading runqueues. Even if
-	 * the RT task is of higher priority than the current RT task.
-	 * RT tasks behave differently than other tasks. If
-	 * one gets preempted, we try to push it off to another queue.
-	 * So trying to keep a preempting RT task on the same
-	 * cache hot CPU will force the running RT task to
-	 * a cold CPU. So we waste all the cache for the lower
-	 * RT task in hopes of saving some of a RT task
-	 * that is just being woken and probably will have
-	 * cold cache anyway.
-	 */
-	cpu = find_lowest_rq(p, dep_mask_ptr);
+	list_for_each_entry(node, &p->task_affinity.followme_list, list) {
+		if (task_current(this_rq(), node->task) && task_cpu(p) == cpu)
+			return cpu;
+	}
+
+	cpu = find_lowest_rq(p, NULL);
 
 	if (cpu >= 0)
 		return cpu;
 
-	if(!le)
-		printk(KERN_WARNING "Task %d was not able to follow its dependencies. "
-			"Waking it up on %d.", p->pid, task_cpu(p));
 	return task_cpu(p);
 }
 
@@ -1204,28 +1216,6 @@ static inline int pick_optimal_cpu(int this_cpu,
 	return -1;
 }
 
-static inline int find_least_loaded_rt_rq (struct cpumask *mask) 
-{
-	int best_cpu = cpumask_first(mask);
-	struct rt_rq* rt_rq = &cpu_rq(best_cpu)->rt;
-	unsigned long best_nr_rt = rt_rq->rt_nr_running;
-	int cpu;
-
-	/* No cpu set in mask */
-	if (best_cpu >= nr_cpu_ids)
-		return -1;
-
-	for_each_cpu(cpu, mask) {
-		rt_rq = &cpu_rq(cpu)->rt;
-		if (rt_rq->rt_nr_running < best_nr_rt) {
-			best_cpu = cpu;
-			best_nr_rt =  rt_rq->rt_nr_running;
-			if (!best_nr_rt)
-				return best_cpu;
-		}
-	}
-	return best_cpu;
-}
 
 static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask)
 {
@@ -1234,16 +1224,6 @@ static int find_lowest_rq(struct task_struct *task, struct cpumask *dep_mask)
 	int this_cpu = smp_processor_id();
 	int cpu      = task_cpu(task);
 	cpumask_var_t domain_mask;
-
-	if (dep_mask != NULL) {
-		cpumask_and(dep_mask, dep_mask, &task->cpus_allowed);
-
-		/* Find which of allowed CPUs is the least loaded, i.e.
-		 * the one that has least RT tasks. Although this is not
-		 * a true "least loaded", it's the desired behavior in case
-		 * of RT tasks and dep_mask != NULL */
-		return find_least_loaded_rt_rq(dep_mask);
-	}
 
 	if (task->se.rt.nr_cpus_allowed == 1)
 		return -1; /* No other targets possible */
