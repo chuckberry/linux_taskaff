@@ -2415,6 +2415,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	unsigned long flags;
 	long old_state;
 	struct rq *rq;
+	int may_push;
 
 	if (!sched_feat(SYNC_WAKEUPS))
 		sync = 0;
@@ -2453,7 +2454,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	if (unlikely(task_running(rq, p)))
 		goto out_activate;
 
-	cpu = p->sched_class->select_task_rq(p, sync);
+	cpu = p->sched_class->select_task_rq(p, sync, &may_push);
 	if (cpu != orig_cpu) {
 		set_task_cpu(p, cpu);
 		task_rq_unlock(rq, &flags);
@@ -2522,7 +2523,7 @@ out_running:
 
 	p->state = TASK_RUNNING;
 #ifdef CONFIG_SMP
-	if (p->sched_class->task_wake_up)
+	if (p->sched_class->task_wake_up && may_push)
 		p->sched_class->task_wake_up(rq, p);
 #endif
 out:

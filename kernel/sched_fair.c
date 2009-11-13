@@ -1285,7 +1285,7 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	return 0;
 }
 
-static int select_task_rq_fair(struct task_struct *p, int sync)
+static int select_task_rq_fair(struct task_struct *p, int sync, int* may_push)
 {
 	struct sched_domain *sd, *this_sd = NULL;
 	int prev_cpu, this_cpu, new_cpu;

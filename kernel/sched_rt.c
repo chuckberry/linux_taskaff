@@ -965,12 +965,14 @@ static inline int find_least_loaded_rt_rq (struct cpumask *mask)
 	return best_cpu;
 }
 
-static int select_task_rq_rt(struct task_struct *p, int sync)
+static int select_task_rq_rt(struct task_struct *p, int sync, int *may_push)
 {
 	struct task_affinity_node *node;
 	struct cpumask dep_mask = CPU_MASK_NONE;
 	int cpu = smp_processor_id();
 	int le = list_empty(&p->task_affinity.affinity_list);
+
+	*may_push = 1;
 
 	/* If list of tasks p is affine to is not empty,
 	 * create a mask out of the CPUs they ran last time
@@ -995,12 +997,15 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 		 * a true "least loaded", it's the desired behavior in case
 		 * of RT tasks
 		 */
-		if (!cpumask_empty(&dep_mask))
+		if (!cpumask_empty(&dep_mask)) {
+			*may_push = 0;
 			return find_least_loaded_rt_rq(&dep_mask);
-		else
+		}
+		else {
 			printk(KERN_WARNING "Task %d was not able to follow its"
 					" dependencies. Waking it up on %d.",
 					p->pid, task_cpu(p));
+		}
 	}
 	if (current->state != TASK_RUNNING) {
 		if (cpu_isset(cpu, p->cpus_allowed))
@@ -1008,7 +1013,11 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 	}
 
 	list_for_each_entry(node, &p->task_affinity.followme_list, list) {
-		if (task_current(this_rq(), node->task) && task_cpu(p) == cpu)
+		if (task_current(this_rq(), node->task) && task_cpu(p) == cpu) {
+			printk(KERN_WARNING "Task %d will wait %d (current) "
+					"leave cpu #%d to run on it\n",
+					p->pid, current->pid, cpu);
+			*may_push = 0;
 			return cpu;
 	}
 
@@ -1566,7 +1575,7 @@ static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
 	    !test_tsk_need_resched(rq->curr) &&
 	    list_empty(&p->task_affinity.affinity_list) &&
 	    has_pushable_tasks(rq) &&
-	    p->se.rt.nr_cpus_allowed > 1)
+	    p->se.rt.nr_cpus_allowed > 1 )
 		push_rt_tasks(rq);
 		return;
 }

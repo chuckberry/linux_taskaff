@@ -8,7 +8,7 @@
 static const struct sched_class idle_sched_class;
 
 #ifdef CONFIG_SMP
-static int select_task_rq_idle(struct task_struct *p, int sync)
+static int select_task_rq_idle(struct task_struct *p, int sync, int *may_push)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
