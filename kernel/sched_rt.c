@@ -1014,11 +1014,9 @@ static int select_task_rq_rt(struct task_struct *p, int sync, int *may_push)
 
 	list_for_each_entry(node, &p->task_affinity.followme_list, list) {
 		if (task_current(this_rq(), node->task) && task_cpu(p) == cpu) {
-			printk(KERN_WARNING "Task %d will wait %d (current) "
-					"leave cpu #%d to run on it\n",
-					p->pid, current->pid, cpu);
 			*may_push = 0;
 			return cpu;
+		}
 	}
 
 	cpu = find_lowest_rq(p, NULL);
