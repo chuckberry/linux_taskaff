@@ -1001,21 +1001,24 @@ static int select_task_rq_rt(struct task_struct *p, int sync, int *may_push)
 			*may_push = 0;
 			return find_least_loaded_rt_rq(&dep_mask);
 		}
-		else {
+/*		else {
 			printk(KERN_WARNING "Task %d was not able to follow its"
 					" dependencies. Waking it up on %d.",
 					p->pid, task_cpu(p));
 		}
+*/
 	}
 	if (current->state != TASK_RUNNING) {
 		if (cpu_isset(cpu, p->cpus_allowed))
 			return cpu;
 	}
 
-	list_for_each_entry(node, &p->task_affinity.followme_list, list) {
-		if (task_current(this_rq(), node->task) && task_cpu(p) == cpu) {
-			*may_push = 0;
-			return cpu;
+	if (cpu == task_cpu(p)) {
+		list_for_each_entry(node, &p->task_affinity.followme_list, list) {
+			if (task_current(this_rq(), node->task)) {
+				*may_push = 0;
+				return cpu;
+			}
 		}
 	}
 
