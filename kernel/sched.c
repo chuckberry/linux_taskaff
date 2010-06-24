@@ -484,6 +484,15 @@ static struct root_domain def_root_domain;
 
 #endif
 
+#ifdef CONFIG_TASKAFFINITY
+/*
+ * Added struct to manage taskaffinity (rq side)
+ */
+struct task_affinity_rq {
+	pid_t last_tsk;
+};
+#endif
+
 /*
  * This is the main, per-CPU runqueue data structure.
  *
@@ -509,6 +518,10 @@ struct rq {
 	struct load_weight load;
 	unsigned long nr_load_updates;
 	u64 nr_switches;
+
+#ifdef CONFIG_TASKAFFINITY
+	struct task_affinity_rq affinity_fields;
+#endif
 
 	struct cfs_rq cfs;
 	struct rt_rq rt;
@@ -7760,6 +7773,11 @@ void __init sched_init(void)
 		rq->calc_load_update = jiffies + LOAD_FREQ;
 		init_cfs_rq(&rq->cfs, rq);
 		init_rt_rq(&rq->rt, rq);
+
+#ifdef CONFIG_TASKAFFINITY
+		rq->affinity_fields.last_tsk = -1;
+#endif
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		init_task_group.shares = init_task_group_load;
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
