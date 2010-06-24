@@ -2582,6 +2582,14 @@ static void __sched_fork(struct task_struct *p)
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
 #endif
+
+#ifdef CONFIG_TASKAFFINITY
+	INIT_LIST_HEAD(&p->task_affinity.affinity_list);
+	INIT_LIST_HEAD(&p->task_affinity.followme_list);
+	p->task_affinity.satisfied_affinity = 0;
+	p->task_affinity.satisfied_followme = 0;
+	p->task_affinity.current_choice = 0;
+#endif
 }
 
 /*

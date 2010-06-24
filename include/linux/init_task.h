@@ -103,6 +103,22 @@ extern struct cred init_cred;
 # define INIT_PERF_EVENTS(tsk)
 #endif
 
+#ifdef CONFIG_TASKAFFINITY
+# define INIT_TASKAFF_STRUCT(tsk)					\
+	.task_affinity = {						\
+		.affinity_list	=					\
+			LIST_HEAD_INIT(tsk.task_affinity.affinity_list),\
+		.followme_list  =					\
+			LIST_HEAD_INIT(tsk.task_affinity.followme_list),\
+		.satisfied_affinity = 0,				\
+		.satisfied_followme = 0,					\
+		.current_choice = 0					\
+	},
+#else
+# define INIT_TASKAFF_STRUCT(tsk)
+#endif
+
+
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
@@ -130,6 +146,7 @@ extern struct cred init_cred;
 		.nr_cpus_allowed = NR_CPUS,				\
 	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
+	INIT_TASKAFF_STRUCT(tsk)					\
 	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO), \
 	.ptraced	= LIST_HEAD_INIT(tsk.ptraced),			\
 	.ptrace_entry	= LIST_HEAD_INIT(tsk.ptrace_entry),		\
