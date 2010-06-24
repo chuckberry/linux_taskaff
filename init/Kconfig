@@ -461,6 +461,12 @@ config LOG_BUF_SHIFT
 config HAVE_UNSTABLE_SCHED_CLOCK
 	bool
 
+config TASKAFFINITY
+       boolean "Enable Taskaffinity"
+       help
+         This options enables taskaffinity
+
+
 menuconfig CGROUPS
 	boolean "Control Group support"
 	depends on EVENTFD
