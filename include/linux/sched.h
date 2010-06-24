@@ -1077,6 +1077,25 @@ struct load_weight {
 	unsigned long weight, inv_weight;
 };
 
+#ifdef CONFIG_TASKAFFINITY
+/*
+ * Added structure to manage taskaffinity (task side)
+ */
+struct task_affinity_node {
+	struct list_head list;
+	struct task_struct *task;
+};
+
+struct task_affinity {
+	struct list_head affinity_list;
+	struct list_head followme_list;
+	int satisfied_affinity;
+	int satisfied_followme;
+	int current_choice;
+};
+#endif
+
+
 /*
  * CFS stats for a schedulable entity (task, task-group etc)
  *
@@ -1218,6 +1237,10 @@ struct task_struct {
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	struct sched_info sched_info;
+#endif
+
+#ifdef CONFIG_TASKAFFINITY
+	struct task_affinity task_affinity;
 #endif
 
 	struct list_head tasks;
