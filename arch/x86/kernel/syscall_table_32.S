@@ -337,3 +337,8 @@ ENTRY(sys_call_table)
 	.long sys_rt_tgsigqueueinfo	/* 335 */
 	.long sys_perf_event_open
 	.long sys_recvmmsg
+
+#ifdef CONFIG_TASKAFFINITY
+	.long sys_sched_add_taskaffinity
+	.long sys_sched_del_taskaffinity
+#endif

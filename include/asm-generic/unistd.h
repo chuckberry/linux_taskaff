@@ -627,8 +627,20 @@ __SYSCALL(__NR_accept4, sys_accept4)
 #define __NR_recvmmsg 243
 __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 
+#ifdef CONFIG_TASKAFFINITY
+#define __NR_sched_add_taskaffinity 244
+__SYSCALL(__NR_sched_add_taskaffinity, sys_sched_add_taskaffinity)
+#define __NR_sched_del_taskaffinity 245
+__SYSCALL(__NR_sched_del_taskaffinity, sys_sched_del_taskaffinity)
+#endif
+
 #undef __NR_syscalls
-#define __NR_syscalls 244
+
+#ifdef CONFIG_TASKAFFINITY
+# define __NR_syscalls 246
+#else
+# define __NR_syscalls 244
+#endif
 
 /*
  * All syscalls below here should go away really,

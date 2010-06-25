@@ -344,9 +344,18 @@
 #define __NR_perf_event_open	336
 #define __NR_recvmmsg		337
 
+#ifdef CONFIG_TASKAFFINITY
+#define __NR_sched_add_taskaffinity 338
+#define __NR_sched_del_taskaffinity 339
+#endif
+
 #ifdef __KERNEL__
 
-#define NR_syscalls 338
+#ifdef CONFIG_TASKAFFINITY
+# define NR_syscalls 340
+#else
+# define NR_syscalls 338
+#endif
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
