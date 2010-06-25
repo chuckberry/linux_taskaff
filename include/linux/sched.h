@@ -2475,6 +2475,9 @@ __trace_special(void *__tr, void *__data,
 extern long sched_setaffinity(pid_t pid, const struct cpumask *new_mask);
 extern long sched_getaffinity(pid_t pid, struct cpumask *mask);
 
+#ifdef CONFIG_TASKAFFINITY
+extern void task_affinity_notify_exit(struct task_struct *p);
+#endif
 extern void normalize_rt_tasks(void);
 
 #ifdef CONFIG_CGROUP_SCHED

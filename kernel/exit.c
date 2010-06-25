@@ -863,6 +863,10 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	    tsk->signal->notify_count < 0)
 		wake_up_process(tsk->signal->group_exit_task);
 
+#ifdef CONFIG_TASKAFFINITY
+	task_affinity_notify_exit(tsk);
+#endif
+
 	write_unlock_irq(&tasklist_lock);
 
 	tracehook_report_death(tsk, signal, cookie, group_dead);
