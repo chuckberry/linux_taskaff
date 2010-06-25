@@ -4796,6 +4796,126 @@ out_unlock:
 	return retval;
 }
 
+#ifdef CONFIG_TASKAFFINITY
+/**
+ * sched_add_taskaffinity - add task p in the dependency list of current and
+ * register 'current' in the notifier chain of p.
+ * @p: task to add
+ */
+static long sched_add_taskaffinity(struct task_struct *p)
+{
+	struct task_affinity_node *affinity_node;
+	struct task_affinity_node *followme_node;
+	long retval;
+
+
+	affinity_node = kmalloc(sizeof(struct task_affinity_node), GFP_KERNEL);
+	if (!affinity_node) {
+		retval = -ENOMEM;
+		goto out;
+	}
+
+	followme_node = kmalloc(sizeof(struct task_affinity_node), GFP_KERNEL);
+	if (!followme_node) {
+		retval = -ENOMEM;
+		goto out_free_node;
+	}
+
+	affinity_node->task = p;
+	list_add(&affinity_node->list, &current->task_affinity.affinity_list);
+
+	followme_node->task = current;
+	list_add(&followme_node->list, &p->task_affinity.followme_list);
+
+	return 0;
+
+out_free_node:
+	kfree(affinity_node);
+out:
+	return retval;
+}
+
+/**
+ * sched_del_taskfollowme - delete task 'p' from the followme list of 'me'
+ * @me: task in which to iterate through followme list
+ * @p: task to delete from the mentioned list
+ */
+static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p)
+{
+	struct list_head *list;
+	long retval = -ESRCH;
+
+	list_for_each(list, &me->task_affinity.followme_list) {
+		struct task_affinity_node *node =
+			list_entry(list, struct task_affinity_node, list);
+		if (node->task == p) {
+			retval = 0;
+			list_del(list);
+			kfree(node);
+			break;
+		}
+	}
+
+	return retval;
+}
+
+/**
+ * sched_del_taskaffinity - delete task 'p' from the list 'me' depends upon
+ * @me: task in which to iterate through taskaffinity list
+ * @p: the task to delete
+ */
+static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
+{
+	struct list_head *list;
+	long retval = -ESRCH;
+
+	list_for_each(list, &me->task_affinity.affinity_list) {
+		struct task_affinity_node *node =
+			list_entry(list, struct task_affinity_node, list);
+		if (node->task == p) {
+			/* we found the task we want to remove, but first we
+			 * must remove current from the followme list of p
+			 */
+			retval = sched_del_taskfollowme(p, me);
+
+			BUG_ON(retval);
+			list_del(list);
+			kfree(node);
+			break;
+		}
+	}
+
+
+	return retval;
+}
+
+/*
+ * task_affinity_notify_exit - notify all tasks dependent on me that I am
+ * exiting, therefore references to me must be deleted.
+ * @p: exiting task
+ */
+void task_affinity_notify_exit(struct task_struct *p)
+{
+       struct task_struct *tsk;
+       struct task_affinity_node *node, *tmp;
+
+       /* Remove all tasks I'm following */
+       list_for_each_entry_safe(node, tmp,
+			&p->task_affinity.affinity_list, list) {
+		tsk = node->task;
+		sched_del_taskaffinity(p, tsk);
+       }
+
+       /* Remove tasks are following me*/
+       list_for_each_entry_safe(node, tmp,
+			&p->task_affinity.followme_list, list) {
+		tsk = node->task;
+		sched_del_taskaffinity(tsk, p);
+       }
+}
+
+#endif
+
 long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 {
 	cpumask_var_t cpus_allowed, new_mask;
