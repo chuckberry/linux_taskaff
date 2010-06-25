@@ -664,6 +664,13 @@ __SYSCALL(__NR_perf_event_open, sys_perf_event_open)
 #define __NR_recvmmsg				299
 __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 
+#ifdef CONFIG_TASKAFFINITY
+#define __NR_sched_add_taskaffinity             300
+__SYSCALL(__NR_sched_add_taskaffinity, sys_sched_add_taskaffinity)
+#define __NR_sched_del_taskaffinity             301
+__SYSCALL(__NR_sched_del_taskaffinity, sys_sched_del_taskaffinity)
+#endif
+
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_OLD_STAT
