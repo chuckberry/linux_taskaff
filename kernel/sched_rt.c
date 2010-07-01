@@ -948,6 +948,91 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
+#ifdef CONFIG_TASKAFFINITY
+/*
+ * find_taskaff_cpu - find a cpu according to taksaffinity relations of p
+ * @p: The to-be-woekn task
+ */
+
+static int find_taskaff_cpu(struct task_struct *p)
+{
+	int cpu;
+	struct task_affinity_node *node;
+	struct cpumask temp_mask = CPU_MASK_NONE;
+	struct cpumask affinity_mask = CPU_MASK_NONE;
+	p->task_affinity.current_choice = 0;
+
+	list_for_each_entry(node,
+			&p->task_affinity.affinity_list, list) {
+
+		struct task_struct *tsk = node->task;
+		cpu = task_cpu(tsk);
+		struct rq *tsk_rq = cpu_rq(cpu);
+
+		/*
+		 * if tsk is last task executed on tsk_rq,
+		 * put tsk's cpu in affinity_mask
+		 */
+
+		if (current == tsk) {
+			p->task_affinity.satisfied_affinity = 1;
+			p->task_affinity.current_choice = 1;
+			return cpu;
+		}
+
+
+		if (tsk_rq->affinity_fields.last_tsk == tsk->pid)
+			cpumask_or(&temp_mask, &temp_mask, cpumask_of(cpu));
+	}
+
+	/* check for cpuaffinity */
+	cpumask_and(&affinity_mask, &p->cpus_allowed, &temp_mask);
+	if (!cpumask_empty(&affinity_mask)) {
+
+		cpu = task_cpu(p);
+		if (cpumask_test_cpu(cpu, &affinity_mask)) {
+			p->task_affinity.satisfied_affinity = 1;
+			return cpu;
+		}
+
+		cpu = cpumask_first(&affinity_mask);
+		if (cpu < nr_cpu_ids) {
+			p->task_affinity.satisfied_affinity = 1;
+			return cpu;
+		}
+	}
+
+	return -1;
+}
+
+/*
+ * find_followme_cpu - find ia cpumask according to followme relations of p
+ * @p: The to-be-woken task
+ */
+
+static int find_followme_cpu(struct task_struct *p)
+{
+	int cpu = smp_processor_id();
+	struct task_affinity_node *node;
+
+	/* check if this_cpu is last cpu that execute p */
+	if (cpu == task_cpu(p)) {
+		list_for_each_entry(node,
+				&p->task_affinity.followme_list, list) {
+			struct task_struct *tsk = node->task;
+			if (current == tsk) {
+				p->task_affinity.satisfied_followme = 1;
+				return cpu;
+			}
+		}
+	}
+
+	return -1;
+
+}
+#endif
+
+
 static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 {
 	struct rq *rq = task_rq(p);
