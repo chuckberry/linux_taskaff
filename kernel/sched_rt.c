@@ -1125,6 +1125,11 @@ static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 {
 	if (rq->curr->rt.nr_cpus_allowed == 1)
 		return;
+#ifdef CONFIG_TASKAFFINITY
+	/* if a task satisfies taskaffinity don't push it or current */
+	if (p->task_affinity.satisfied_affinity)
+		return;
+#endif
 
 	if (p->rt.nr_cpus_allowed != 1
 	    && cpupri_find(&rq->rd->cpupri, p, NULL))
@@ -1568,6 +1573,15 @@ static int pull_rt_task(struct rq *this_rq)
 
 		p = pick_next_highest_task_rt(src_rq, this_cpu);
 
+#ifdef CONFIG_TASKAFFINITY
+		/*
+		 * if task is not null and it satisfies taskaffinity
+		 * don't pull it
+		 */
+		if (p && p->task_affinity.satisfied_affinity)
+			goto skip; /* to call double_unlock_balance */
+#endif
+
 		/*
 		 * Do we have an RT task that preempts
 		 * the to-be-scheduled task?
@@ -1624,10 +1638,18 @@ static void post_schedule_rt(struct rq *rq)
  */
 static void task_woken_rt(struct rq *rq, struct task_struct *p)
 {
+
+#ifdef CONFIG_TASKAFFINITY
+	int satisfied_affinity = p->task_affinity.satisfied_affinity + p->task_affinity.satisfied_followme;
+#else
+	int satisfied_affinity = 0;
+#endif
+
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
 	    has_pushable_tasks(rq) &&
-	    p->rt.nr_cpus_allowed > 1)
+	    p->rt.nr_cpus_allowed > 1 &&
+	    !satisfied_affinity)
 		push_rt_tasks(rq);
 }
 
