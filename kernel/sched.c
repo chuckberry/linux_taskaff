@@ -3767,6 +3767,11 @@ need_resched_nonpreemptible:
 		rq->curr = next;
 		++*switch_count;
 
+#ifdef CONFIG_TASKAFFINITY
+		if (rq->curr != rq->idle)
+			rq->affinity_fields.last_tsk = rq->curr->pid;
+#endif
+
 		context_switch(rq, prev, next); /* unlocks the rq */
 		/*
 		 * the context switch might have flipped the stack from under

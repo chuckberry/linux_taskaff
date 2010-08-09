@@ -811,6 +811,18 @@ void dec_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 
 static void __enqueue_rt_entity(struct sched_rt_entity *rt_se, bool head)
 {
+
+#ifdef CONFIG_TASKAFFINITY
+	struct task_struct *p = rt_task_of(rt_se);
+	int satisfied_affinity = p->task_affinity.satisfied_affinity;
+#else
+	/*
+	* if taskaffinity is disabled, this flag doesn't affect
+	* if statement below
+	*/
+	int satisfied_affinity = 0;
+#endif
+
 	struct rt_rq *rt_rq = rt_rq_of_se(rt_se);
 	struct rt_prio_array *array = &rt_rq->active;
 	struct rt_rq *group_rq = group_rt_rq(rt_se);
@@ -825,7 +837,7 @@ static void __enqueue_rt_entity(struct sched_rt_entity *rt_se, bool head)
 	if (group_rq && (rt_rq_throttled(group_rq) || !group_rq->rt_nr_running))
 		return;
 
-	if (head)
+	if (head || satisfied_affinity)
 		list_add(&rt_se->run_list, queue);
 	else
 		list_add_tail(&rt_se->run_list, queue);
@@ -909,6 +921,18 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 	dequeue_rt_entity(rt_se);
 
 	dequeue_pushable_task(rq, p);
+
+#ifdef CONFIG_TASKAFFINITY
+	/*
+	* Turn off satisfied_affinity if on, because
+	* this flag is usless if a task it isn't on a rq
+	*/
+	if (p->task_affinity.satisfied_affinity)
+		p->task_affinity.satisfied_affinity = 0;
+
+	if (p->task_affinity.satisfied_followme)
+		p->task_affinity.satisfied_followme = 0;
+#endif
 }
 
 /*
@@ -938,6 +962,15 @@ static void requeue_task_rt(struct rq *rq, struct task_struct *p, int head)
 		rt_rq = rt_rq_of_se(rt_se);
 		requeue_rt_entity(rt_rq, rt_se, head);
 	}
+
+#ifdef CONFIG_TASKAFFINITY
+	if (p->task_affinity.satisfied_affinity)
+		p->task_affinity.satisfied_affinity = 0;
+
+	if (p->task_affinity.satisfied_followme)
+		p->task_affinity.satisfied_followme = 0;
+#endif
+
 }
 
 static void yield_task_rt(struct rq *rq)
@@ -1057,6 +1090,23 @@ static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	 * that is just being woken and probably will have
 	 * cold cache anyway.
 	 */
+
+#ifdef CONFIG_TASKAFFINITY
+	if (!list_empty(&p->task_affinity.affinity_list)) {
+		int cpu = find_taskaff_cpu(p);
+		if (cpu != -1)
+			return cpu;
+	}
+
+	/* tasks with taskaffinity don't enter here */
+	if (!list_empty(&p->task_affinity.followme_list) && list_empty(&p->task_affinity.affinity_list)) {
+		int cpu = find_followme_cpu(p);
+		if (cpu != -1)
+			return cpu;
+	}
+
+#endif
+
 	if (unlikely(rt_task(rq->curr)) &&
 	    (p->rt.nr_cpus_allowed > 1)) {
 		int cpu = find_lowest_rq(p);
