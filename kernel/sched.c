@@ -2435,6 +2435,14 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	raw_spin_lock(&rq->lock);
 	update_rq_clock(rq);
 
+#ifdef CONFIG_TASKAFFINITY
+	if (p->task_affinity.satisfied_affinity &&
+		!p->task_affinity.current_choice &&
+		rq->rt.highest_prio.curr <= p->prio) {
+		p->task_affinity.satisfied_affinity = 0;
+	}
+#endif
+
 	/*
 	 * We migrated the task without holding either rq->lock, however
 	 * since the task is not on the task list itself, nobody else
