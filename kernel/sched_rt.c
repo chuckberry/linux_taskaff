@@ -987,6 +987,7 @@ static int find_lowest_rq(struct task_struct *task);
  * @p: The to-be-woekn task
  */
 
+/* <SYNCH> assumption: p->task_affinity.taskaff_lock is taken */
 static int find_taskaff_cpu(struct task_struct *p)
 {
 	int cpu;
@@ -1065,7 +1066,6 @@ static int find_followme_cpu(struct task_struct *p)
 }
 #endif
 
-
 static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 {
 	struct rq *rq = task_rq(p);
@@ -1092,19 +1092,28 @@ static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	 */
 
 #ifdef CONFIG_TASKAFFINITY
+	/* <SYNCH> sched_add/del_taskaffinity can edit theese structure
+	 *  therefore use a read lock
+	 */
+
+	/* <SYNCH> read_lock(p->task_affinity.taskaff_lock) */
 	if (!list_empty(&p->task_affinity.affinity_list)) {
 		int cpu = find_taskaff_cpu(p);
-		if (cpu != -1)
+		if (cpu != -1) {
+			/* <SYNCH> read_unlock(p->task_affinity.taskaff_lock) */
 			return cpu;
+		}
 	}
 
 	/* tasks with taskaffinity don't enter here */
 	if (!list_empty(&p->task_affinity.followme_list) && list_empty(&p->task_affinity.affinity_list)) {
 		int cpu = find_followme_cpu(p);
-		if (cpu != -1)
+		if (cpu != -1) {
+			/* <SYNCH> read_unlock(p->task_affinity.taskaff_lock) */
 			return cpu;
+		}
 	}
-
+	/* <SYNCH> read_unlock(p->task_affinity.taskaff_lock) */
 #endif
 
 	if (unlikely(rt_task(rq->curr)) &&
