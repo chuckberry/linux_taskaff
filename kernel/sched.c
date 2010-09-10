@@ -2437,40 +2437,6 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 
 #ifdef CONFIG_TASKAFFINITY
 	/* <SYNCH> it's necessary use a read_lock here?
-	 * who does it edit taskaff. related flags in this moment?
-	 *
-	 * -> ttwu: Thanks to disabled preemption and new task state TASK_WAKING
-	 *    multiple ttwu for a task are serialized, so ONLY one ttwu read
-	 *    taskaff related flags. Rq examined is locked.
-	 *
-	 * -> enqueue/dequeue_rt_entity: in this moment a task is not on a rq,
-	 *    therefore it's impossible that someone make a migration (enq/deq)
-	 *    on a to-be-woken task. rq examined is locked
-	 *
-	 * -> select_task_rq: it's called by ttwu, therefore only one select_task_rq
-	 *    read taskaff flags, any lock on rq examined
-	 *
-	 * -> pull_rt_task: it can pull only a task on a rq, therefore it's impossible
-	 *    that it pull a task during select_task_rq, furthermore it takes a lock
-	 *    on rq that contains task to pull, lock on runqueues examined
-	 *
-	 * -> task_woken_rt: it is made at the end of ttwu with lock on rq,
-	 *    there isn't any danger rq examined is locked
-	 *
-	 * All theese functions, but select_task_rq edit taskaff. structure AFTER
-	 * to have locked rq where task to modify is placed on, therefore to ensure
-	 * synchronization rq's lock is enough select_task_rq doesn't take any lock,
-	 * it watches rq->last_tsk without to have lock on rq but this should involve
-	 * an inconsistent reading, furthermore when a select occurs, task
-	 * is not on a rq therefore none of the functions seen can edit its taskaff
-	 * strcuture.
-	 *
-	 * Only set_add/del_taskaffinity can modify taskaff structures, because syscall
-	 * use tasklist_lock and I think that ttwu don't take tasklist_lock, otherwise
-	 * performace would falling down. Therefore if someone call add/del taskaff
-	 * during ttwu() it's a disaster.
-	 * I think that sched_add/del_taskaffinity are the functions that can edit
-	 * taskaffinity structure when select_task_rq, ttwu, enq/deq run.
 	 *
 	 * In briefly: it's not necessary to use a read_lock, because sched_add/del
 	 * doesn't touch satsifed_affinity, current_choice and rq is locked
@@ -4857,7 +4823,7 @@ out_unlock:
  * register 'current' in the notifier chain of p.
  * @p: task to add
  */
-/* <SYNCH> this function has taken tasklist_lock on read*/
+/* <SYNCH> this function has taken tasklist_lock on write*/
 static long sched_add_taskaffinity(struct task_struct *p)
 {
 	struct task_affinity_node *affinity_node;
@@ -4878,14 +4844,10 @@ static long sched_add_taskaffinity(struct task_struct *p)
 	}
 
 	affinity_node->task = p;
-	/* <SYNCH> write_lock(p->taskaff_lock) */
 	list_add(&affinity_node->list, &current->task_affinity.affinity_list);
-	/* <SYNCH> write_unlock(p->taskaff_lock) */
 
 	followme_node->task = current;
-	/* <SYNCH> write_lock(p->taskaff_lock) */
 	list_add(&followme_node->list, &p->task_affinity.followme_list);
-	/* <SYNCH> write_unlock(p->taskaff_lock) */
 
 	return 0;
 
@@ -4900,7 +4862,7 @@ out:
  * @me: task in which to iterate through followme list
  * @p: task to delete from the mentioned list
  */
-/* <SYNCH> this function has taken tasklist_lock on read*/
+/* <SYNCH> this function has taken tasklist_lock on write*/
 static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p)
 {
 	struct list_head *list;
@@ -4925,13 +4887,12 @@ static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p
  * @me: task in which to iterate through taskaffinity list
  * @p: the task to delete
  */
-/* <SYNCH> this function has taken tasklist_lock on read */
+/* <SYNCH> this function has taken tasklist_lock on write */
 static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 {
 	struct list_head *list;
 	long retval = -ESRCH;
 
-	/* <SYNCH> write_lock(p->taskaff_lock) */
 	list_for_each(list, &me->task_affinity.affinity_list) {
 		struct task_affinity_node *node =
 			list_entry(list, struct task_affinity_node, list);
@@ -4947,7 +4908,6 @@ static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p
 			break;
 		}
 	}
-	/* <SYNCH> write_unlock(p->taskaff_lock) */
 
 
 	return retval;
@@ -5079,12 +5039,12 @@ SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
 	 * rcu_read_lock, is it better read_lock or rcu_read_lock?
 	 */
 
-	read_lock(&tasklist_lock);
+	write_lock_irq(&tasklist_lock);
 	p = find_process_by_pid(pid);
 	if (p)
 		retval = sched_add_taskaffinity(p);
 
-	read_unlock(&tasklist_lock);
+	write_unlock_irq(&tasklist_lock);
 	return retval;
 }
 
@@ -5102,17 +5062,14 @@ SYSCALL_DEFINE1(sched_del_taskaffinity, pid_t, pid)
 		return -EINVAL;
 
 	retval = -ESRCH;
-	/* <SYNCH> sched_add_taskaffinity must read p's task_struct
-	 * other functions that call find_process_by_pid use
-	 * rcu_read_lock, is it better read_lock or rcu_read_lock?
-	 */
+	/* <SYNCH> first try: use tasklist_lock */
 
-	read_lock(&tasklist_lock);
+	write_lock_irq(&tasklist_lock);
 	p = find_process_by_pid(pid);
 	if (p)
 		retval = sched_del_taskaffinity(current, p);
 
-	read_unlock(&tasklist_lock);
+	write_unlock_irq(&tasklist_lock);
 	return retval;
 }
 #endif

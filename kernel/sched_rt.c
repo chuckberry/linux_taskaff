@@ -987,7 +987,7 @@ static int find_lowest_rq(struct task_struct *task);
  * @p: The to-be-woekn task
  */
 
-/* <SYNCH> assumption: p->task_affinity.taskaff_lock is taken */
+/* <SYNCH> assumption: tasklist_lock is taken on read */
 static int find_taskaff_cpu(struct task_struct *p)
 {
 	int cpu;
@@ -1096,11 +1096,12 @@ static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	 *  therefore use a read lock
 	 */
 
-	/* <SYNCH> read_lock(p->task_affinity.taskaff_lock) */
+	/* <SYNCH> first try: use tasklist_lock */
+	read_lock(&tasklist_lock);
 	if (!list_empty(&p->task_affinity.affinity_list)) {
 		int cpu = find_taskaff_cpu(p);
 		if (cpu != -1) {
-			/* <SYNCH> read_unlock(p->task_affinity.taskaff_lock) */
+			read_unlock(&tasklist_lock);
 			return cpu;
 		}
 	}
@@ -1109,11 +1110,11 @@ static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	if (!list_empty(&p->task_affinity.followme_list) && list_empty(&p->task_affinity.affinity_list)) {
 		int cpu = find_followme_cpu(p);
 		if (cpu != -1) {
-			/* <SYNCH> read_unlock(p->task_affinity.taskaff_lock) */
+			read_unlock(&tasklist_lock);
 			return cpu;
 		}
 	}
-	/* <SYNCH> read_unlock(p->task_affinity.taskaff_lock) */
+	read_unlock(&tasklist_lock);
 #endif
 
 	if (unlikely(rt_task(rq->curr)) &&
