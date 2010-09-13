@@ -4823,14 +4823,19 @@ out_unlock:
  * register 'current' in the notifier chain of p.
  * @p: task to add
  */
-/* <SYNCH> this function has taken tasklist_lock on write*/
+
+/* <SYNCH> p's taskaff_lock is taken therefore I can't
+ * sleep here. To protect taskaff related structure I use a rwlock
+ * becasue if I use rcu, I have to call synchronize_rcu() and I think that
+ * it is a blocking function
+ */
 static long sched_add_taskaffinity(struct task_struct *p)
 {
 	struct task_affinity_node *affinity_node;
 	struct task_affinity_node *followme_node;
 	long retval;
 
-
+	/* <SYNCH> kmalloc could sleep, it's necessary use GFP_ATOMIC */
 	affinity_node = kmalloc(sizeof(struct task_affinity_node), GFP_KERNEL);
 	if (!affinity_node) {
 		retval = -ENOMEM;
@@ -4862,7 +4867,8 @@ out:
  * @me: task in which to iterate through followme list
  * @p: task to delete from the mentioned list
  */
-/* <SYNCH> this function has taken tasklist_lock on write*/
+
+/* <SYNCH> me's taskaff_lock is taken on write, while p is protected by rcu */
 static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p)
 {
 	struct list_head *list;
@@ -4887,7 +4893,8 @@ static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p
  * @me: task in which to iterate through taskaffinity list
  * @p: the task to delete
  */
-/* <SYNCH> this function has taken tasklist_lock on write */
+
+/* <SYNCH> me's taskaff_lock is taken on write, while p is protected by rcu */
 static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 {
 	struct list_head *list;
@@ -4909,7 +4916,6 @@ static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p
 		}
 	}
 
-
 	return retval;
 }
 
@@ -4919,9 +4925,9 @@ static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p
  * @p: exiting task
  */
 
-/* <SYNCH> this function is already sycnhronized by tasklist_lock on write
- * because it is called by do_exit and when it call
- * task_affinity_notify_exit
+/* <SYNCH> tasklist_lock is taken on write and interrupt are disabled
+ * p's taskaff_lock is tasken, therefore it's possible to call
+ * sched_add/del_taskaff
  */
 void task_affinity_notify_exit(struct task_struct *p)
 {
@@ -5034,17 +5040,17 @@ SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
 		return -EINVAL;
 
 	retval = -ESRCH;
-	/* <SYNCH> sched_add_taskaffinity must read p's task_struct
-	 * other functions that call find_process_by_pid use
-	 * rcu_read_lock, is it better read_lock or rcu_read_lock?
+	/* <SYNCH> find_process_by_pid requires a rcu_read_lock
+	 * is written in a comment, so here it is necessary to use rcu
 	 */
-
-	write_lock_irq(&tasklist_lock);
+	/* <SYNCH> rcu_read_lock(); */
 	p = find_process_by_pid(pid);
-	if (p)
+	if (p) {
+		/* <SYNCH> write_lock(&p->task_affinity.taskaff_lock) */
 		retval = sched_add_taskaffinity(p);
-
-	write_unlock_irq(&tasklist_lock);
+		/* <SYNCH> write_unlock(&p->task_affinity.taskaff_lock) */
+	}
+	/* <SYNCH> rcu_read_unlock(); */
 	return retval;
 }
 
@@ -5062,14 +5068,15 @@ SYSCALL_DEFINE1(sched_del_taskaffinity, pid_t, pid)
 		return -EINVAL;
 
 	retval = -ESRCH;
-	/* <SYNCH> first try: use tasklist_lock */
 
-	write_lock_irq(&tasklist_lock);
+	/* <SYNCH> rcu_read_lock(); */
 	p = find_process_by_pid(pid);
-	if (p)
+	if (p) {
+		/* <SYNCH> write_lock(&current->task_affinity.taskaff_lock) */
 		retval = sched_del_taskaffinity(current, p);
-
-	write_unlock_irq(&tasklist_lock);
+		/* <SYNCH> write_unlock(&current->task_affinity.taskaff_lock) */
+	}
+	/* <SYNCH> rcu_read_unlock(); */
 	return retval;
 }
 #endif
