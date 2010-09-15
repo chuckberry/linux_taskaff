@@ -2618,6 +2618,7 @@ static void __sched_fork(struct task_struct *p)
 	p->task_affinity.satisfied_affinity = 0;
 	p->task_affinity.satisfied_followme = 0;
 	p->task_affinity.current_choice = 0;
+	p->task_affinity.taskaff_lock = __RW_LOCK_UNLOCKED(p->task_affinity.taskaff_lock);
 #endif
 }
 
@@ -4824,10 +4825,9 @@ out_unlock:
  * @p: task to add
  */
 
-/* <SYNCH> p's taskaff_lock is taken therefore I can't
- * sleep here. To protect taskaff related structure I use a rwlock
- * becasue if I use rcu, I have to call synchronize_rcu() and I think that
- * it is a blocking function
+/* <SYNCH> tasklist_lock is taken to protect p's pid from exit.
+ * To protect taskaff related structure I use a rwlock
+ * TODO: use rcu
  */
 static long sched_add_taskaffinity(struct task_struct *p)
 {
@@ -4835,7 +4835,7 @@ static long sched_add_taskaffinity(struct task_struct *p)
 	struct task_affinity_node *followme_node;
 	long retval;
 
-	/* <SYNCH> kmalloc could sleep, it's necessary use GFP_ATOMIC */
+	/* <SYNCH> kmalloc could sleep, Is it necessary use GFP_ATOMIC? */
 	affinity_node = kmalloc(sizeof(struct task_affinity_node), GFP_KERNEL);
 	if (!affinity_node) {
 		retval = -ENOMEM;
@@ -4848,11 +4848,16 @@ static long sched_add_taskaffinity(struct task_struct *p)
 		goto out_free_node;
 	}
 
+	/* <SYNCH> synchronize write access to followme and affinity lists */
 	affinity_node->task = p;
+	write_lock(&current->task_affinity.taskaff_lock);
 	list_add(&affinity_node->list, &current->task_affinity.affinity_list);
+	write_unlock(&current->task_affinity.taskaff_lock);
 
 	followme_node->task = current;
+	write_lock(&p->task_affinity.taskaff_lock);
 	list_add(&followme_node->list, &p->task_affinity.followme_list);
+	write_unlock(&p->task_affinity.taskaff_lock);
 
 	return 0;
 
@@ -4868,23 +4873,30 @@ out:
  * @p: task to delete from the mentioned list
  */
 
-/* <SYNCH> me's taskaff_lock is taken on write, while p is protected by rcu */
+/* <SYNCH> tasklist_lock is taken to protect p's pid from exit.
+ * p's taskaff_lock is taken, here we have to take me's taskaff_lock
+ * TODO: use rcu
+ */
 static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p)
 {
 	struct list_head *list;
 	long retval = -ESRCH;
 
+	/* <SYNCH> synchronize write access to me, p is already synch. */
+	write_lock(&me->task_affinity.taskaff_lock);
 	list_for_each(list, &me->task_affinity.followme_list) {
 		struct task_affinity_node *node =
 			list_entry(list, struct task_affinity_node, list);
 		if (node->task == p) {
 			retval = 0;
 			list_del(list);
+			write_unlock(&me->task_affinity.taskaff_lock);
 			kfree(node);
-			break;
+			return retval;
 		}
 	}
 
+	write_unlock(&me->task_affinity.taskaff_lock);
 	return retval;
 }
 
@@ -4894,12 +4906,16 @@ static long sched_del_taskfollowme(struct task_struct *me, struct task_struct *p
  * @p: the task to delete
  */
 
-/* <SYNCH> me's taskaff_lock is taken on write, while p is protected by rcu */
+/* <SYNCH> tasklist_lock is taken to protect p's pid from exit.
+ * TODO: use rcu
+ */
 static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p)
 {
 	struct list_head *list;
 	long retval = -ESRCH;
 
+	/* <SYNCH> synchronize write access to me */
+	write_lock(&me->task_affinity.taskaff_lock);
 	list_for_each(list, &me->task_affinity.affinity_list) {
 		struct task_affinity_node *node =
 			list_entry(list, struct task_affinity_node, list);
@@ -4911,11 +4927,13 @@ static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p
 
 			BUG_ON(retval);
 			list_del(list);
+			write_unlock(&me->task_affinity.taskaff_lock);
 			kfree(node);
-			break;
+			return retval;
 		}
 	}
 
+	write_unlock(&me->task_affinity.taskaff_lock);
 	return retval;
 }
 
@@ -4925,10 +4943,7 @@ static long sched_del_taskaffinity(struct task_struct *me, struct task_struct *p
  * @p: exiting task
  */
 
-/* <SYNCH> tasklist_lock is taken on write and interrupt are disabled
- * p's taskaff_lock is tasken, therefore it's possible to call
- * sched_add/del_taskaff
- */
+/* <SYNCH> tasklist_lock is taken on write and interrupt are disabled */
 void task_affinity_notify_exit(struct task_struct *p)
 {
        struct task_struct *tsk;
@@ -5041,16 +5056,17 @@ SYSCALL_DEFINE1(sched_add_taskaffinity, pid_t, pid)
 
 	retval = -ESRCH;
 	/* <SYNCH> find_process_by_pid requires a rcu_read_lock
-	 * is written in a comment, so here it is necessary to use rcu
+	 * or tasklist_lock because they are needed by find_task_by_pid_ns
 	 */
-	/* <SYNCH> rcu_read_lock(); */
+	read_lock(&tasklist_lock);
 	p = find_process_by_pid(pid);
 	if (p) {
-		/* <SYNCH> write_lock(&p->task_affinity.taskaff_lock) */
 		retval = sched_add_taskaffinity(p);
-		/* <SYNCH> write_unlock(&p->task_affinity.taskaff_lock) */
 	}
-	/* <SYNCH> rcu_read_unlock(); */
+	/* <SYNCH> unlock here beacuse add_taskaff must be protect from
+	 * call of do_exit
+	 */
+	read_unlock(&tasklist_lock);
 	return retval;
 }
 
@@ -5069,14 +5085,18 @@ SYSCALL_DEFINE1(sched_del_taskaffinity, pid_t, pid)
 
 	retval = -ESRCH;
 
-	/* <SYNCH> rcu_read_lock(); */
+	/* <SYNCH> find_process_by_pid requires a rcu_read_lock
+	 * or tasklist_lock because they are needed by find_task_by_pid_ns
+	 */
+	read_lock(&tasklist_lock);
 	p = find_process_by_pid(pid);
 	if (p) {
-		/* <SYNCH> write_lock(&current->task_affinity.taskaff_lock) */
 		retval = sched_del_taskaffinity(current, p);
-		/* <SYNCH> write_unlock(&current->task_affinity.taskaff_lock) */
 	}
-	/* <SYNCH> rcu_read_unlock(); */
+	/* <SYNCH> unlock here beacuse add_taskaff must be protect from
+	 * call of do_exit
+	 */
+	read_unlock(&tasklist_lock);
 	return retval;
 }
 #endif

@@ -1092,6 +1092,7 @@ struct task_affinity {
 	int satisfied_affinity;
 	int satisfied_followme;
 	int current_choice;
+	rwlock_t taskaff_lock;
 };
 #endif
 

@@ -864,10 +864,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 		wake_up_process(tsk->signal->group_exit_task);
 
 #ifdef CONFIG_TASKAFFINITY
-	/* <SYNCH> synchronize on tsk's taskaff_lock */
-	/* <SYNCH> write_lock(&tsk->task_affinity.taskaff_lock); */
 	task_affinity_notify_exit(tsk);
-	/* <SYNCH> write_unlock(&tsk->task_affinity.taskaff_lock); */
 #endif
 
 	write_unlock_irq(&tasklist_lock);

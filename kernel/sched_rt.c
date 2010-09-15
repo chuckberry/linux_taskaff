@@ -1012,16 +1012,15 @@ static int find_taskaff_cpu(struct task_struct *p)
 			p->task_affinity.satisfied_affinity = 1;
 			p->task_affinity.current_choice = 1;
 			/* <SYNCH> cpu found, release lock */
-			/* <SYNCH> read_unlock(&p->task_affinity.taskaff_lock); */
+			read_unlock(&p->task_affinity.taskaff_lock);
 			return cpu;
 		}
-
 
 		if (tsk_rq->affinity_fields.last_tsk == tsk->pid)
 			cpumask_or(&temp_mask, &temp_mask, cpumask_of(cpu));
 	}
 	/* <SYNCH> release lock here because now affinity_list is usless */
-	/* <SYNCH> read_unlock(&p->task_affinity.taskaff_lock); */
+	read_unlock(&p->task_affinity.taskaff_lock);
 
 	/* check for cpuaffinity */
 	cpumask_and(&affinity_mask, &p->cpus_allowed, &temp_mask);
@@ -1062,14 +1061,14 @@ static int find_followme_cpu(struct task_struct *p)
 			if (current == tsk) {
 				p->task_affinity.satisfied_followme = 1;
 				/* <SYNCH> cpu found, release lock */
-				/* <SYNCH> read_unlock(&p->task_affinity.taskaff_lock); */
+				read_unlock(&p->task_affinity.taskaff_lock);
 				return cpu;
 			}
 		}
 	}
 
 	/* <SYNCH> release lock here because now followme_list is usless */
-	/* <SYNCH> read_unlock(&p->task_affinity.taskaff_lock); */
+	read_unlock(&p->task_affinity.taskaff_lock);
 	return -1;
 
 }
@@ -1108,7 +1107,7 @@ static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	/* <SYNCH> take p's taskaff_lock
 	 * taskaff_lock is released within find_taskaff_cpu
 	 */
-	/* <SYNCH> read_lock(&p->task_affinity.taskaff_lock); */
+	read_lock(&p->task_affinity.taskaff_lock);
 	if (!list_empty(&p->task_affinity.affinity_list)) {
 		int cpu = find_taskaff_cpu(p);
 		if (cpu != -1) {
@@ -1117,10 +1116,11 @@ static int select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	}
 
 	/* tasks with taskaffinity don't enter here */
+
 	/* <SYNCH> take p's taskaff_lock
 	 * taskaff_lock is released within find_followme_cpu
 	 */
-	/* <SYNCH> read_lock(&p->task_affinity.taskaff_lock); */
+	read_lock(&p->task_affinity.taskaff_lock);
 	if (!list_empty(&p->task_affinity.followme_list) && list_empty(&p->task_affinity.affinity_list)) {
 		int cpu = find_followme_cpu(p);
 		if (cpu != -1) {
