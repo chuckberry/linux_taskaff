@@ -112,7 +112,8 @@ extern struct cred init_cred;
 			LIST_HEAD_INIT(tsk.task_affinity.followme_list),\
 		.satisfied_affinity = 0,				\
 		.satisfied_followme = 0,					\
-		.current_choice = 0					\
+		.current_choice = 0,					\
+		.taskaff_lock = __RW_LOCK_UNLOCKED(tsk.task_affinity.taskaff_lock) \
 	},
 #else
 # define INIT_TASKAFF_STRUCT(tsk)

@@ -2618,7 +2618,7 @@ static void __sched_fork(struct task_struct *p)
 	p->task_affinity.satisfied_affinity = 0;
 	p->task_affinity.satisfied_followme = 0;
 	p->task_affinity.current_choice = 0;
-	p->task_affinity.taskaff_lock = __RW_LOCK_UNLOCKED(p->task_affinity.taskaff_lock);
+	rwlock_init(&p->task_affinity.taskaff_lock);
 #endif
 }
 
