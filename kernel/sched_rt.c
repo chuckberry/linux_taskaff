@@ -812,17 +812,6 @@ void dec_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 static void __enqueue_rt_entity(struct sched_rt_entity *rt_se, bool head)
 {
 
-#ifdef CONFIG_TASKAFFINITY
-	struct task_struct *p = rt_task_of(rt_se);
-	int satisfied_affinity = p->task_affinity.satisfied_affinity;
-#else
-	/*
-	* if taskaffinity is disabled, this flag doesn't affect
-	* if statement below
-	*/
-	int satisfied_affinity = 0;
-#endif
-
 	struct rt_rq *rt_rq = rt_rq_of_se(rt_se);
 	struct rt_prio_array *array = &rt_rq->active;
 	struct rt_rq *group_rq = group_rt_rq(rt_se);
@@ -837,7 +826,7 @@ static void __enqueue_rt_entity(struct sched_rt_entity *rt_se, bool head)
 	if (group_rq && (rt_rq_throttled(group_rq) || !group_rq->rt_nr_running))
 		return;
 
-	if (head || satisfied_affinity)
+	if (head)
 		list_add(&rt_se->run_list, queue);
 	else
 		list_add_tail(&rt_se->run_list, queue);
@@ -1000,26 +989,18 @@ static int find_taskaff_cpu(struct task_struct *p)
 
 		struct task_struct *tsk = node->task;
 		cpu = task_cpu(tsk);
-		struct rq *tsk_rq = cpu_rq(cpu);
 
 		/*
 		 * if tsk is last task executed on tsk_rq,
 		 * put tsk's cpu in affinity_mask
 		 */
 
-		if (current == tsk) {
-			p->task_affinity.satisfied_affinity = 1;
-			p->task_affinity.current_choice = 1;
-			return cpu;
-		}
-
-
-		if (tsk_rq->affinity_fields.last_tsk == tsk->pid)
-			cpumask_or(&temp_mask, &temp_mask, cpumask_of(cpu));
+		cpumask_or(&temp_mask, &temp_mask, cpumask_of(cpu));
 	}
 
 	/* check for cpuaffinity */
 	cpumask_and(&affinity_mask, &p->cpus_allowed, &temp_mask);
+
 	if (!cpumask_empty(&affinity_mask)) {
 
 		cpu = task_cpu(p);
