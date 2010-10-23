@@ -1008,7 +1008,7 @@ static int find_taskaff_cpu(struct task_struct *p)
 		 * put tsk's cpu in affinity_mask
 		 */
 
-		if (current == tsk) {
+		if (task_current(tsk_rq,tsk)) {
 			p->task_affinity.satisfied_affinity = 1;
 			p->task_affinity.current_choice = 1;
 			return cpu;
@@ -1616,8 +1616,10 @@ static int pull_rt_task(struct rq *this_rq)
 			 * p if it is lower in priority than the
 			 * current task on the run queue
 			 */
-			if (p->prio < src_rq->curr->prio)
+			if (p->prio < src_rq->curr->prio) {
+				trace_printk("TO_PULL_%s:PULL_SKIP_CPU%d,CUR_%s\n",p->comm,cpu,src_rq->curr->comm);
 				goto skip;
+			}
 
 			ret = 1;
 
@@ -1663,6 +1665,8 @@ static void task_woken_rt(struct rq *rq, struct task_struct *p)
 	int satisfied_affinity = 0;
 #endif
 
+	trace_printk("PUSH_COND %s: RUNNING %d NEED_RESC %d NR_PUSHA %d ALLOW %d AFF %d\n",p->comm,
+		!task_running(rq, p),!test_tsk_need_resched(rq->curr),has_pushable_tasks(rq),p->rt.nr_cpus_allowed,!satisfied_affinity);
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
 	    has_pushable_tasks(rq) &&
