@@ -1523,6 +1523,7 @@ static int pull_rt_task(struct rq *this_rq)
 		return 0;
 
 	for_each_cpu(cpu, this_rq->rd->rto_mask) {
+		trace_printk("PULL_ITER\n");
 		if (this_cpu == cpu)
 			continue;
 
@@ -1559,8 +1560,10 @@ static int pull_rt_task(struct rq *this_rq)
 		 * if task is not null and it satisfies taskaffinity
 		 * don't pull it
 		 */
-		if (p && p->task_affinity.satisfied_affinity)
+		if (p && p->task_affinity.satisfied_affinity) {
+			trace_printk("PULL_TSKF_%s\n",p->comm);
 			goto skip; /* to call double_unlock_balance */
+		}
 #endif
 
 		/*
@@ -1587,6 +1590,7 @@ static int pull_rt_task(struct rq *this_rq)
 			deactivate_task(src_rq, p, 0);
 			set_task_cpu(p, this_cpu);
 			activate_task(this_rq, p, 0);
+			trace_printk("PULL_OK_%s\n",p->comm);
 			/*
 			 * We continue with the search, just in
 			 * case there's an even higher prio task
