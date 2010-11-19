@@ -2444,11 +2444,9 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	 * is done in pre_schedule, therefore I thinck that I can do it here
 	 */
 
-	if (p->task_affinity.satisfied_affinity &&
-		!p->task_affinity.current_choice &&
-		rq->rt.highest_prio.curr <= p->prio) {
-		p->task_affinity.satisfied_affinity = 0;
-	}
+	if (p->task_affinity.satisfied_affinity)
+			check_taskaff(rq,p);
+
 #endif
 
 	/*

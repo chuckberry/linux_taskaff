@@ -982,6 +982,36 @@ static void yield_task_rt(struct rq *rq)
 static int find_lowest_rq(struct task_struct *task);
 
 #ifdef CONFIG_TASKAFFINITY
+
+static void check_taskaff(struct rq* rq, struct task_struct *p) 
+{
+
+	if (rq->rt.highest_prio.curr > p->prio)
+		return;
+
+	/* no chance to be executed */
+	if (rq->rt.highest_prio.curr < p->prio)
+		goto reset_affinity;
+
+	if (rq->rt.highest_prio.curr == p->prio) {
+
+		struct task_affinity_node *node;
+		list_for_each_entry(node,
+				&p->task_affinity.affinity_list, list) {
+
+			struct task_struct *tsk = node->task;
+
+			if (task_current(rq,tsk))
+				return;
+		}
+		goto reset_affinity;
+	}
+
+reset_affinity:
+	p->task_affinity.satisfied_affinity = 0;
+
+}
+
 /*
  * find_taskaff_cpu - find a cpu according to taksaffinity relations of p
  * @p: The to-be-woekn task
@@ -1008,7 +1038,7 @@ static int find_taskaff_cpu(struct task_struct *p)
 		 * put tsk's cpu in affinity_mask
 		 */
 
-		if (task_current(tsk_rq,tsk)) {
+		if (current == tsk) {
 			p->task_affinity.satisfied_affinity = 1;
 			p->task_affinity.current_choice = 1;
 			return cpu;
